@@ -37,8 +37,8 @@ export interface EquipmentFormRef {
 }
 
 export const EquipmentForm = forwardRef<EquipmentFormRef, EquipmentFormProps>(({ equipment, onSubmit, onCancel }, ref) => {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [categories, setCategories] = useState<EquipmentCategory[]>([]);
+    const [ isSubmitting, setIsSubmitting ] = useState(false);
+    const [ categories, setCategories ] = useState<EquipmentCategory[]>([]);
 
     const form = useForm<EquipmentFormData>({
         resolver: zodResolver(equipmentSchema),
@@ -87,7 +87,7 @@ export const EquipmentForm = forwardRef<EquipmentFormRef, EquipmentFormProps>(({
                 categoryId: equipment.categoryId || undefined,
             });
         }
-    }, [equipment, form]);
+    }, [ equipment, form ]);
 
     useImperativeHandle(ref, () => ({
         submit: () => {
