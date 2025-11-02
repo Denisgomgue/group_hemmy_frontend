@@ -101,7 +101,7 @@ export const EquipmentForm = forwardRef<EquipmentFormRef, EquipmentFormProps>(({
         try {
             // Limpiar valores vacíos antes de enviar
             const cleanedValues: any = {
-                useType: values.useType,
+                useType: EquipmentUseType.CLIENT, // Siempre CLIENT para esta página
                 categoryId: values.categoryId,
             };
 
@@ -112,22 +112,8 @@ export const EquipmentForm = forwardRef<EquipmentFormRef, EquipmentFormProps>(({
             if (values.model?.trim()) cleanedValues.model = values.model.trim();
             if (values.notes?.trim()) cleanedValues.notes = values.notes.trim();
 
-            // Estado y fecha de asignación
+            // Estado
             cleanedValues.status = values.status;
-            
-            // Si se asigna a una instalación o empleado, establecer fecha automáticamente
-            if (values.installationId || values.employeeId) {
-                cleanedValues.assignedDate = new Date().toISOString().split('T')[0];
-            }
-
-            // Asignación según tipo de uso
-            if (values.useType === EquipmentUseType.CLIENT && values.installationId) {
-                cleanedValues.installationId = values.installationId;
-                cleanedValues.employeeId = undefined;
-            } else if (values.useType === EquipmentUseType.EMPLOYEE && values.employeeId) {
-                cleanedValues.employeeId = values.employeeId;
-                cleanedValues.installationId = undefined;
-            }
 
             if (equipment) {
                 await EquipmentAPI.update(equipment.id, cleanedValues);
@@ -255,6 +241,26 @@ export const EquipmentForm = forwardRef<EquipmentFormRef, EquipmentFormProps>(({
                         )}
                     />
 
+                    {/* Notas */}
+                    <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Notas</FormLabel>
+                                <FormControl>
+                                    <Textarea
+                                        {...field}
+                                        placeholder="Observaciones adicionales..."
+                                        disabled={isSubmitting}
+                                        rows={3}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
                     {/* Categoría - Requerido */}
                     <FormField
                         control={form.control}
@@ -280,26 +286,6 @@ export const EquipmentForm = forwardRef<EquipmentFormRef, EquipmentFormProps>(({
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    {/* Notas */}
-                    <FormField
-                        control={form.control}
-                        name="notes"
-                        render={({ field }) => (
-                            <FormItem className="md:col-span-2">
-                                <FormLabel>Notas</FormLabel>
-                                <FormControl>
-                                    <Textarea
-                                        {...field}
-                                        placeholder="Observaciones adicionales..."
-                                        disabled={isSubmitting}
-                                        rows={3}
-                                    />
-                                </FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}
