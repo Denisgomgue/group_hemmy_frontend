@@ -65,10 +65,27 @@ export const headers = [
         label: "Asignado a",
         render: (value: string, item: Equipment) => {
             if (item.installation?.client) {
+                const actor = item.installation.client.actor;
+                let clientName = '-';
+                
+                if (actor?.person) {
+                    clientName = `${actor.person.firstName} ${actor.person.lastName}`.trim();
+                } else if (actor?.organization) {
+                    clientName = actor.organization.legalName;
+                } else if (actor?.displayName) {
+                    clientName = actor.displayName;
+                }
+                
+                const ipAddress = item.installation.ipAddress;
+                
                 return (
-                    <div>
-                        <div className="font-medium">{item.installation.client.actor?.displayName || '-'}</div>
-                        <div className="text-sm text-muted-foreground">{item.installation.ipAddress || '-'}</div>
+                    <div className="flex flex-col gap-1">
+                        <div className="font-medium">{clientName}</div>
+                        {ipAddress && (
+                            <Badge variant="outline" className="w-fit text-xs">
+                                {ipAddress}
+                            </Badge>
+                        )}
                     </div>
                 );
             } else if (item.employee?.person) {

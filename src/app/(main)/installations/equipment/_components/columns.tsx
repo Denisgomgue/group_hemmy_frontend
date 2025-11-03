@@ -80,10 +80,27 @@ export const columns: ColumnDef<Equipment>[] = [
         cell: ({ row }) => {
             const equipment = row.original;
             if (equipment.installation?.client) {
+                const actor = equipment.installation.client.actor;
+                let clientName = '-';
+                
+                if (actor?.person) {
+                    clientName = `${actor.person.firstName} ${actor.person.lastName}`.trim();
+                } else if (actor?.organization) {
+                    clientName = actor.organization.legalName;
+                } else if (actor?.displayName) {
+                    clientName = actor.displayName;
+                }
+                
+                const ipAddress = equipment.installation.ipAddress;
+                
                 return (
-                    <div>
-                        <div className="font-medium">{equipment.installation.client.actor?.displayName || '-'}</div>
-                        <div className="text-sm text-muted-foreground">{equipment.installation.ipAddress || '-'}</div>
+                    <div className="flex flex-col gap-1">
+                        <div className="font-medium">{clientName}</div>
+                        {ipAddress && (
+                            <Badge variant="outline" className="w-fit text-xs">
+                                {ipAddress}
+                            </Badge>
+                        )}
                     </div>
                 );
             } else if (equipment.employee?.person) {

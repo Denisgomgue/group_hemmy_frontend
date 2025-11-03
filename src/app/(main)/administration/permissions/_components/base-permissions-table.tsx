@@ -79,13 +79,19 @@ export function BasePermissionsTable({
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-200">
                             <th className="text-left p-4 font-semibold text-gray-700">Rol</th>
-                            {moduleConfig.basePermissions.map(permission => (
-                                <th key={permission} className="text-center p-4 font-semibold text-gray-700">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span>{permission}</span>
-                                    </div>
-                                </th>
-                            ))}
+                            {moduleConfig.basePermissions.map((permission, index) => {
+                                // Mostrar el nombre del permiso o la acción según corresponda
+                                const displayText = permission.includes(':')
+                                    ? permission.split(':')[ 1 ] // Si es código completo, mostrar solo la acción
+                                    : permission; // Si es solo la acción, mostrarla
+                                return (
+                                    <th key={`${permission}-${index}`} className="text-center p-4 font-semibold text-gray-700">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span className="capitalize">{displayText}</span>
+                                        </div>
+                                    </th>
+                                );
+                            })}
                             <th className="text-center p-4 font-semibold text-gray-700">
                                 <Button
                                     variant="ghost"
@@ -149,18 +155,31 @@ export function BasePermissionsTable({
                                         )}
                                     </div>
                                 </td>
-                                {moduleConfig.basePermissions.map(permission => (
-                                    <td key={permission} className="text-center p-4">
-                                        <Checkbox
-                                            checked={getPermissionStatus(role.name, selectedModule, permission)}
-                                            onCheckedChange={(checked) =>
-                                                handlePermissionChange(role.name, selectedModule, permission, checked as boolean)
-                                            }
-                                            disabled={isRoleAllowAll(role.name) || isLoading}
-                                            className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        />
-                                    </td>
-                                ))}
+                                {moduleConfig.basePermissions.map((permission, index) => {
+                                    // El permission puede ser el código completo (si selectedModule es 'all') 
+                                    // o solo la acción (si hay un módulo específico)
+                                    const permissionCode = permission.includes(':')
+                                        ? permission // Ya es código completo (ej: "users:read")
+                                        : `${selectedModule}:${permission}`; // Construir código "recurso:accion"
+
+                                    // Obtener el nombre para mostrar
+                                    const permissionDisplayName = permission.includes(':')
+                                        ? permission.split(':')[ 1 ] // Mostrar solo la acción
+                                        : permission;
+
+                                    return (
+                                        <td key={`${permission}-${index}`} className="text-center p-4">
+                                            <Checkbox
+                                                checked={getPermissionStatus(role.name, selectedModule, permissionCode)}
+                                                onCheckedChange={(checked) =>
+                                                    handlePermissionChange(role.name, selectedModule, permissionCode, checked as boolean)
+                                                }
+                                                disabled={isRoleAllowAll(role.name) || isLoading}
+                                                className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            />
+                                        </td>
+                                    );
+                                })}
                                 <td className="text-center p-4">
                                     <Button
                                         variant="ghost"

@@ -29,11 +29,26 @@ export function EquipmentCard({ equipment }: EquipmentCardProps) {
     };
     const config = statusConfig[ equipment.status ];
 
-    const assignedTo =
-        equipment.installation?.client?.actor?.displayName ||
-        (equipment.employee?.person
-            ? `${equipment.employee.person.firstName} ${equipment.employee.person.lastName}`
-            : '-');
+    // Función para obtener el nombre del cliente
+    const getClientName = () => {
+        if (equipment.installation?.client?.actor) {
+            const actor = equipment.installation.client.actor;
+            if (actor.person) {
+                return `${actor.person.firstName} ${actor.person.lastName}`.trim();
+            } else if (actor.organization) {
+                return actor.organization.legalName;
+            } else if (actor.displayName) {
+                return actor.displayName;
+            }
+        }
+        if (equipment.employee?.person) {
+            return `${equipment.employee.person.firstName} ${equipment.employee.person.lastName}`.trim();
+        }
+        return '-';
+    };
+
+    const assignedTo = getClientName();
+    const ipAddress = equipment.installation?.ipAddress;
 
     const topSectionContent = (
         <div className="flex items-center justify-between mb-4 gap-2">
@@ -102,6 +117,11 @@ export function EquipmentCard({ equipment }: EquipmentCardProps) {
                 <div>
                     <div className="text-xs text-muted-foreground mb-0.5">Asignado a</div>
                     <div className="font-medium">{assignedTo}</div>
+                    {ipAddress && (
+                        <Badge variant="outline" className="w-fit text-xs mt-1">
+                            {ipAddress}
+                        </Badge>
+                    )}
                 </div>
             )}
             {equipment.assignedDate && (

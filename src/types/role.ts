@@ -4,7 +4,7 @@ export interface Role {
     code: string;
     name: string;
     description?: string;
-    isActive: boolean;
+    isSystem: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -13,12 +13,18 @@ export interface CreateRoleDto {
     code: string;
     name: string;
     description?: string;
-    isActive?: boolean;
+    isSystem?: boolean;
 }
 
 export interface UpdateRoleDto {
     code?: string;
     name?: string;
     description?: string;
-    isActive?: boolean;
+    isSystem?: boolean;
+}
+
+export interface RoleQueryParams {
+    page?: number;
+    limit?: number;
+    search?: string;
 }

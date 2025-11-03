@@ -125,7 +125,8 @@ export function Sidebar({
     "/administration/users",
     "/administration/roles",
     "/administration/permissions",
-    "/administration/sectors"
+    "/administration/sectors",
+    "/administration/config"
   ];
 
   // Rutas para Soporte y Análisis
@@ -441,6 +442,16 @@ export function Sidebar({
                         />
                       </Can>
                     </SidebarMenuItem>
+                  </Can>
+                  <Can action="read" subject="Role">
+                    <SidebarMenuItem
+                      key="config"
+                      href="/administration/config"
+                      icon={ShieldCheck}
+                      title="Configuración"
+                      isCollapsed={isCollapsed}
+                      isActive={pathname === "/administration/config"}
+                    />
                   </Can>
                   <Can action="read" subject="Sector">
                     <SidebarMenuItem

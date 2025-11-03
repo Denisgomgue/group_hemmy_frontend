@@ -138,7 +138,7 @@ export const EmployeeForm = forwardRef<EmployeeFormRef, EmployeeFormProps>(({ em
 
             if (employee) {
                 await EmployeesAPI.update(employee.id, cleanedValues);
-            } else {
+        } else {
                 await EmployeesAPI.create(cleanedValues);
             }
             onSubmit({ success: true });
@@ -245,56 +245,56 @@ export const EmployeeForm = forwardRef<EmployeeFormRef, EmployeeFormProps>(({ em
 
     // Si estamos en modo edición, solo mostrar formulario de persona existente
     if (employee) {
-        return (
+    return (
             <Form {...existingForm}>
                 <form onSubmit={existingForm.handleSubmit(handleExistingSubmit)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Persona - Solo lectura */}
-                        <FormField
+                    <FormField
                             control={existingForm.control}
                             name="personId"
-                            render={({ field }) => (
+                        render={({ field }) => (
                                 <FormItem className="md:col-span-2">
                                     <FormLabel>Persona *</FormLabel>
-                                    <FormControl>
+                                <FormControl>
                                         <PersonSearchSelect
                                             value={field.value}
                                             onChange={(value) => field.onChange(value)}
                                             placeholder="Buscar persona..."
                                             disabled={true}
                                             error={!!existingForm.formState.errors.personId}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
                         {/* Cargo */}
-                        <FormField
+                    <FormField
                             control={existingForm.control}
                             name="jobTitle"
-                            render={({ field }) => (
-                                <FormItem>
+                        render={({ field }) => (
+                            <FormItem>
                                     <FormLabel>Cargo</FormLabel>
-                                    <FormControl>
-                                        <Input
+                                <FormControl>
+                                    <Input
                                             {...field}
                                             placeholder="Ej: Técnico, Secretario, Administrador"
                                             disabled={isSubmitting}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
                         {/* Fecha de Contratación */}
-                        <FormField
+                    <FormField
                             control={existingForm.control}
                             name="hireDate"
-                            render={({ field }) => (
-                                <FormItem>
+                        render={({ field }) => (
+                            <FormItem>
                                     <FormLabel>Fecha de Contratación</FormLabel>
                                     <Popover>
                                         <PopoverTrigger asChild>
@@ -389,45 +389,45 @@ export const EmployeeForm = forwardRef<EmployeeFormRef, EmployeeFormProps>(({ em
                                     render={({ field }) => (
                                         <FormItem className="md:col-span-2">
                                             <FormLabel>Persona *</FormLabel>
-                                            <FormControl>
+                                <FormControl>
                                                 <PersonSearchSelect
                                                     value={field.value}
                                                     onChange={(value) => field.onChange(value)}
                                                     placeholder="Buscar persona..."
                                                     disabled={isSubmitting}
                                                     error={!!existingForm.formState.errors.personId}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
                                 {/* Cargo */}
-                                <FormField
+                    <FormField
                                     control={existingForm.control}
                                     name="jobTitle"
-                                    render={({ field }) => (
-                                        <FormItem>
+                        render={({ field }) => (
+                            <FormItem>
                                             <FormLabel>Cargo</FormLabel>
-                                            <FormControl>
-                                                <Input
+                                <FormControl>
+                                    <Input
                                                     {...field}
                                                     placeholder="Ej: Técnico, Secretario, Administrador"
                                                     disabled={isSubmitting}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
                                 {/* Fecha de Contratación */}
-                                <FormField
+                    <FormField
                                     control={existingForm.control}
                                     name="hireDate"
-                                    render={({ field }) => (
-                                        <FormItem>
+                        render={({ field }) => (
+                            <FormItem>
                                             <FormLabel>Fecha de Contratación</FormLabel>
                                             <Popover>
                                                 <PopoverTrigger asChild>
@@ -476,28 +476,28 @@ export const EmployeeForm = forwardRef<EmployeeFormRef, EmployeeFormProps>(({ em
                                     render={({ field }) => (
                                         <FormItem className="md:col-span-2">
                                             <FormLabel>Estado *</FormLabel>
-                                            <Select
+                                <Select
                                                 onValueChange={(value) => field.onChange(value as EmployeeStatus)}
                                                 value={field.value}
                                                 disabled={isSubmitting}
-                                            >
-                                                <FormControl>
-                                                    <SelectTrigger>
+                                >
+                                    <FormControl>
+                                        <SelectTrigger>
                                                         <SelectValue placeholder="Seleccione un estado" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
                                                     <SelectItem value={EmployeeStatus.ACTIVE}>Activo</SelectItem>
                                                     <SelectItem value={EmployeeStatus.INACTIVE}>Inactivo</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                        </form>
-                    </Form>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+            </form>
+        </Form>
                 </TabsContent>
 
                 {/* Nueva Persona */}

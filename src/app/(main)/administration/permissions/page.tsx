@@ -1,233 +1,203 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { MainContainer } from "@/components/layout/main-container";
-import { HeaderActions } from "@/components/layout/header-actions";
-import { ReloadButton } from "@/components/layout/reload-button";
-import { Save, RotateCcw } from "lucide-react";
-import { toast } from "sonner";
-import { usePermissionsAPI } from "@/hooks/use-permissions-api";
-import { useResourcesAPI } from "@/hooks/use-resources-api";
-import { PermissionsMatrix } from "./_components/permissions-matrix";
-import { EditRoleModal } from "./_components/edit-role-modal";
-import { DeleteRoleModal } from "./_components/delete-role-modal";
-import { AddRoleModal } from "./_components/add-role-modal";
-import { PermissionsSummaryCards } from "./_components/permissions-summary-cards";
+import { useState, useEffect, useMemo, useRef } from "react"
+import Can from "@/components/permission/can"
+import { columns } from "./_components/columns"
+import { ResponsiveTable } from "@/components/dataTable/responsive-table"
+import { usePermission } from "@/hooks/use-permission"
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { PermissionForm, PermissionFormRef } from "./_components/permission-form"
+import { toast } from "sonner"
+import { headers } from "./_components/headers"
+import { ActionsCell } from "./_components/actions-cell"
+import { Permission } from "@/types/permission"
+import { ViewModeSwitcher } from "@/components/dataTable/view-mode-switcher"
+import { PaginatedCards } from "@/components/dataTable/paginated-cards"
+import { PermissionCard } from "./_components/permission-card"
+import { List, LayoutGrid } from "lucide-react"
+import { MainContainer } from "@/components/layout/main-container"
+import { HeaderActions } from "@/components/layout/header-actions"
+import { ReloadButton } from "@/components/layout/reload-button"
+import { AddButton } from "@/components/layout/add-button"
+import { TableToolbar } from "@/components/dataTable/table-toolbar"
+import { Button } from "@/components/ui/button"
+import { PermissionAPI } from "@/services/permissions-api"
 
-export default function Page() {
-    const [ selectedModule, setSelectedModule ] = useState('payments');
-    const [ hasChanges, setHasChanges ] = useState(false);
-    const [ isSaving, setIsSaving ] = useState(false);
+export default function PermissionsPage() {
+    const { permissions, refreshPermissions, isLoading } = usePermission()
+    const [ isDialogOpen, setIsDialogOpen ] = useState(false)
+    const [ currentPage, setCurrentPage ] = useState(1)
+    const [ pageSize, setPageSize ] = useState(10)
+    const [ viewMode, setViewMode ] = useState<"table" | "grid">("table")
+    const [ isSubmitting, setIsSubmitting ] = useState(false)
+    const [ searchTerm, setSearchTerm ] = useState("")
+    const permissionFormRef = useRef<PermissionFormRef>(null)
 
-    // Estados para modales
-    const [ editRoleModal, setEditRoleModal ] = useState<{ isOpen: boolean; role: any }>({ isOpen: false, role: null });
-    const [ deleteRoleModal, setDeleteRoleModal ] = useState<{ isOpen: boolean; role: any }>({ isOpen: false, role: null });
-    const [ addRoleModal, setAddRoleModal ] = useState<{ isOpen: boolean }>({ isOpen: false });
+    // Filtrar permisos según término de búsqueda y ocultar permiso superadmin (*)
+    const filteredPermissions = useMemo(() => {
+        // Filtrar primero el permiso superadmin
+        let filtered = permissions.filter((permission: Permission) => permission.code !== '*')
 
-    // Usar el hook de la API de permisos
-    const {
-        roles,
-        modules,
-        permissionMatrix: apiPermissionMatrix,
-        permissionsByResource,
-        isLoadingRoles,
-        isLoadingModules,
-        isLoadingMatrix,
-        isLoadingResourcePermissions,
-        updateMatrixPermission,
-        getMatrixPermissionStatus,
-        updatePermissionMatrix,
-        loadPermissionsByResource,
-        hasChanges: apiHasChanges,
-        isSaving: apiIsSaving,
-        setHasChanges: setApiHasChanges,
-        // Lógica de allowAll
-        isRoleAllowAll,
-        isRoleEditable,
-        isRoleDeletable,
-        getMatrixPermissionStatusWithAllowAll,
-        updateMatrixPermissionWithAllowAll,
-        // Funciones de módulos
-        createModule,
-        loadAllData
-    } = usePermissionsAPI();
-
-    // Usar el hook de la API de recursos
-    const { resources, isLoading: isLoadingResources } = useResourcesAPI();
-
-    // Establecer el primer recurso como seleccionado cuando se cargan los recursos
-    useEffect(() => {
-        if (resources.length > 0 && !resources.find(r => r.routeCode === selectedModule)) {
-            const firstActiveResource = resources.find(r => r.isActive);
-            if (firstActiveResource) {
-                setSelectedModule(firstActiveResource.routeCode);
-            }
+        // Luego aplicar el filtro de búsqueda si existe
+        if (searchTerm.trim()) {
+            const searchLower = searchTerm.toLowerCase().trim()
+            filtered = filtered.filter(
+                (permission: Permission) =>
+                    permission.code.toLowerCase().includes(searchLower) ||
+                    permission.name.toLowerCase().includes(searchLower) ||
+                    (permission.description &&
+                        permission.description.toLowerCase().includes(searchLower))
+            )
         }
-    }, [ resources, selectedModule ]);
 
-    // Cargar permisos del recurso seleccionado
+        return filtered
+    }, [ permissions, searchTerm ])
+
+    // Paginar los datos filtrados
+    const paginatedPermissions = useMemo(() => {
+        const start = (currentPage - 1) * pageSize
+        const end = start + pageSize
+        return filteredPermissions.slice(start, end)
+    }, [ filteredPermissions, currentPage, pageSize ])
+
+    // Resetear a página 1 cuando cambia el término de búsqueda
     useEffect(() => {
-        if (selectedModule && resources.length > 0) {
-            loadPermissionsByResource(selectedModule);
+        setCurrentPage(1)
+    }, [ searchTerm ])
+
+    const handlePaginationChange = (page: number, newPageSize: number) => {
+        setCurrentPage(page)
+        if (newPageSize !== pageSize) {
+            setPageSize(newPageSize)
+            setCurrentPage(1)
         }
-    }, [ selectedModule, resources, loadPermissionsByResource ]);
+    }
 
-    const handleReload = () => {
-        loadAllData();
-    };
-
-    const handleSaveChanges = async () => {
-        setIsSaving(true);
+    const handleCreatePermission = async (data: any) => {
+        setIsSubmitting(true)
         try {
-            await updatePermissionMatrix(apiPermissionMatrix);
-            toast.success('Permisos guardados correctamente');
-            setHasChanges(false);
-        } catch (error) {
-            toast.error('Error al guardar permisos');
+            await PermissionAPI.create(data)
+            toast.success("Permiso creado correctamente")
+            setIsDialogOpen(false)
+            await refreshPermissions()
+        } catch (error: any) {
+            const errorMessage =
+                error?.response?.data?.message || error?.message || "Error al crear el permiso"
+            toast.error(errorMessage)
+            console.error("Error creating permission:", error)
         } finally {
-            setIsSaving(false);
+            setIsSubmitting(false)
         }
-    };
+    }
 
-    const handleResetChanges = () => {
-        setHasChanges(false);
-        toast.info('Cambios restablecidos');
-    };
-
-    const handleChangesDetected = (hasChanges: boolean) => {
-        setHasChanges(hasChanges);
-    };
-
-    const handlePermissionChange = (roleName: string, module: string, permission: string, granted: boolean) => {
-        updateMatrixPermissionWithAllowAll(roleName, module, permission, granted);
-    };
-
-    const getPermissionStatus = (roleName: string, module: string, permission: string) => {
-        return getMatrixPermissionStatusWithAllowAll(roleName, module, permission);
-    };
-
-    // Funciones para acciones de roles
-    const handleAddRole = () => {
-        setAddRoleModal({ isOpen: true });
-    };
-
-    const handleEditRole = (roleName: string) => {
-        if (isRoleAllowAll(roleName)) {
-            toast.warning('No se puede editar el Super Administrador');
-            return;
-        }
-        const role = roles.find(r => r.name === roleName);
-        if (role) {
-            setEditRoleModal({ isOpen: true, role });
-        }
-    };
-
-    const handleDeleteRole = (roleName: string) => {
-        if (isRoleAllowAll(roleName)) {
-            toast.warning('No se puede eliminar el Super Administrador');
-            return;
-        }
-        const role = roles.find(r => r.name === roleName);
-        if (role) {
-            setDeleteRoleModal({ isOpen: true, role });
-        }
-    };
-
-    const handleAddBasePermission = () => {
-        toast.info('Función de agregar permiso base en desarrollo');
-    };
-
-    const handleAddSpecificPermission = () => {
-        toast.info('Función de agregar permiso específico en desarrollo');
-    };
-
-    // Estado de carga combinado
-    const isLoading = isLoadingRoles || isLoadingModules || isLoadingMatrix || isLoadingResources || isLoadingResourcePermissions;
-
-    // Calcular estadísticas para las tarjetas de resumen
-    const permissionsSummary = {
-        totalRoles: roles.length,
-        totalResources: resources.length,
-        activeRoles: roles.filter(r => !isRoleAllowAll(r.name)).length,
-        inactiveRoles: 0 // Por ahora 0, se puede ajustar según la lógica de negocio
-    };
-
-    // Obtener permisos del recurso seleccionado
-    const selectedResourcePermissions = permissionsByResource[ selectedModule ] || [];
+    const handleReload = async () => {
+        await refreshPermissions()
+        toast.success("Permisos actualizados")
+    }
 
     return (
         <MainContainer>
-            <HeaderActions title="Gestión de Permisos Granular">
+            <HeaderActions title="Gestión de Permisos">
                 <div className="flex items-center gap-4">
-                    <ReloadButton
-                        onClick={handleReload}
-                        isLoading={isLoading}
+                    <ReloadButton onClick={handleReload} isLoading={isLoading} />
+                    <Can action="create" subject="Permission">
+                        <AddButton onClick={() => setIsDialogOpen(true)}>
+                            Nuevo Permiso
+                        </AddButton>
+                    </Can>
+                    <ViewModeSwitcher
+                        viewMode={viewMode}
+                        setViewMode={(mode: string) => setViewMode(mode as "table" | "grid")}
+                        modes={[
+                            { value: "table", icon: <List className="h-4 w-4" />, label: "Tabla" },
+                            { value: "grid", icon: <LayoutGrid className="h-4 w-4" />, label: "Cuadrícula" },
+                        ]}
                     />
-                    <Button
-                        variant="outline"
-                        onClick={handleResetChanges}
-                        disabled={!hasChanges}
-                    >
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Restablecer
-                    </Button>
-
-                    <Button
-                        onClick={handleSaveChanges}
-                        disabled={!hasChanges || isSaving}
-                    >
-                        <Save className="h-4 w-4 mr-2" />
-                        {isSaving ? 'Guardando...' : 'Guardar Cambios'}
-                    </Button>
                 </div>
             </HeaderActions>
 
-            {/* Summary Cards */}
-            <PermissionsSummaryCards
-                summary={permissionsSummary}
-                isLoading={isLoading}
-            />
+            <div className="space-y-4">
+                <TableToolbar
+                    value={searchTerm}
+                    onValueChange={setSearchTerm}
+                    searchPlaceholder="Buscar por código, nombre o descripción..."
+                    onSearch={(value) => setSearchTerm(value)}
+                />
 
-            {/* Permissions Matrix */}
-            <PermissionsMatrix
-                roles={roles}
-                modules={resources} // Cambiar modules por resources
-                selectedModule={selectedModule}
-                onModuleChange={setSelectedModule}
-                getPermissionStatus={getPermissionStatus}
-                handlePermissionChange={handlePermissionChange}
-                isRoleAllowAll={isRoleAllowAll}
-                onAddRole={handleAddRole}
-                onEditRole={handleEditRole}
-                onDeleteRole={handleDeleteRole}
-                onAddBasePermission={handleAddBasePermission}
-                onAddSpecificPermission={handleAddSpecificPermission}
-                isLoading={isLoading}
-                resourcePermissions={selectedResourcePermissions}
-            />
+                {viewMode === "table" ? (
+                    <ResponsiveTable
+                        data={paginatedPermissions}
+                        columns={columns}
+                        headers={headers}
+                        isLoading={isLoading}
+                        pagination={{
+                            totalRecords: filteredPermissions.length,
+                            pageSize: pageSize,
+                            onPaginationChange: handlePaginationChange,
+                            currentPage: currentPage
+                        }}
+                        actions={(row: Permission) => <ActionsCell rowData={row} />}
+                    />
+                ) : (
+                    <PaginatedCards
+                        data={paginatedPermissions}
+                        totalRecords={filteredPermissions.length}
+                        pageSize={pageSize}
+                        onPaginationChange={handlePaginationChange}
+                        renderCard={(permission: Permission) => (
+                            <PermissionCard key={permission.id} permission={permission} />
+                        )}
+                        isLoading={isLoading}
+                    />
+                )}
 
-            {/* Modales */}
-            <EditRoleModal
-                isOpen={editRoleModal.isOpen}
-                onClose={() => setEditRoleModal({ isOpen: false, role: null })}
-                role={editRoleModal.role}
-            />
+                {!isLoading && filteredPermissions.length === 0 && (
+                    <div className="text-center py-12">
+                        <p className="text-muted-foreground">
+                            {searchTerm ? "No se encontraron permisos que coincidan con la búsqueda." : "No hay permisos registrados."}
+                        </p>
+                    </div>
+                )}
+            </div>
 
-            <DeleteRoleModal
-                isOpen={deleteRoleModal.isOpen}
-                onClose={() => setDeleteRoleModal({ isOpen: false, role: null })}
-                role={deleteRoleModal.role}
-            />
-
-            <AddRoleModal
-                isOpen={addRoleModal.isOpen}
-                onClose={() => setAddRoleModal({ isOpen: false })}
-                onRoleCreated={(newRole) => {
-                    // El modal ya recarga los roles automáticamente
-                    console.log('Nuevo rol creado:', newRole);
-                }}
-            />
+            {/* Dialog para crear */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                        <DialogTitle>Nuevo Permiso</DialogTitle>
+                    </DialogHeader>
+                    <PermissionForm
+                        ref={permissionFormRef}
+                        permission={null}
+                        onSubmit={handleCreatePermission}
+                        onCancel={() => setIsDialogOpen(false)}
+                    />
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDialogOpen(false)}
+                            disabled={isSubmitting}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="default"
+                            onClick={() => {
+                                permissionFormRef.current?.submit()
+                            }}
+                            disabled={isSubmitting || permissionFormRef.current?.isSubmitting}
+                        >
+                            {isSubmitting ? "Creando..." : "Crear"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </MainContainer>
-    );
-} 
+    )
+}

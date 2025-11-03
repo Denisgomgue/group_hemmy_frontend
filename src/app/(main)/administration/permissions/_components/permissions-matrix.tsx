@@ -6,7 +6,7 @@ import { Shield, Settings } from 'lucide-react';
 import { ModuleNavigation } from './module-navigation';
 import { BasePermissionsTable } from './base-permissions-table';
 import { SpecificPermissionsTable } from './specific-permissions-table';
-import { BackendPermission } from '@/services/permissions-api';
+import { Permission } from '@/types/permission';
 
 interface Role {
     id: number;
@@ -37,7 +37,7 @@ interface PermissionsMatrixProps {
     onAddBasePermission: () => void;
     onAddSpecificPermission: () => void;
     isLoading?: boolean;
-    resourcePermissions?: BackendPermission[];
+    resourcePermissions?: Permission[];
 }
 
 export function PermissionsMatrix({
@@ -59,19 +59,30 @@ export function PermissionsMatrix({
     // Encontrar el módulo seleccionado y crear la configuración
     const selectedModuleData = modules.find(m => m.routeCode === selectedModule || m.id === selectedModule);
 
+    // Asegurar que resourcePermissions siempre sea un array
+    const permissionsArray = Array.isArray(resourcePermissions) ? resourcePermissions : [];
+
     // Crear configuración temporal para el módulo seleccionado usando los permisos del recurso
-    const moduleConfig: ModuleConfig | undefined = selectedModuleData ? {
+    // Los permisos tienen formato "recurso:accion" (ej: "users:read", "users:create")
+    const moduleConfig: ModuleConfig | undefined = permissionsArray && permissionsArray.length > 0 ? {
+        id: selectedModuleData?.id || selectedModuleData?.routeCode || selectedModule || 'all',
+        name: selectedModuleData?.displayName || selectedModuleData?.name || 'Todos los Permisos',
+        // Si selectedModule es 'all', usar los códigos completos, sino extraer solo las acciones
+        basePermissions: selectedModule === 'all'
+            ? permissionsArray.map(p => p.code) // Usar código completo cuando es 'all'
+            : permissionsArray
+                .map(p => {
+                    // Si el código tiene formato "recurso:accion", extraer la acción
+                    const parts = p.code.split(':');
+                    return parts.length > 1 ? parts[ 1 ] : p.code;
+                })
+                .filter((value, index, self) => self.indexOf(value) === index), // Eliminar duplicados
+        specificPermissions: [] // Por ahora vacío, se puede implementar si hay sub-rutas
+    } : selectedModuleData ? {
         id: selectedModuleData.id || selectedModuleData.routeCode,
         name: selectedModuleData.displayName || selectedModuleData.name,
-        basePermissions: resourcePermissions
-            .filter(p => !p.isSubRoute)
-            .flatMap(p => p.actions || []),
-        specificPermissions: resourcePermissions
-            .filter(p => p.isSubRoute)
-            .map(p => ({
-                id: p.name,
-                name: p.displayName || p.name
-            }))
+        basePermissions: [],
+        specificPermissions: []
     } : undefined;
 
     if (isLoading) {
@@ -87,12 +98,30 @@ export function PermissionsMatrix({
         );
     }
 
-    if (!modules.length || !roles.length) {
+    // Mostrar permisos incluso si no hay módulos, pero hay permisos disponibles
+    if (!roles.length) {
+        return (
+            <Card className="p-6">
+                <div className="text-center py-8">
+                    <p className="text-gray-600 mb-4">No hay roles disponibles</p>
+                    <button onClick={() => window.location.reload()} className="text-purple-600 hover:text-purple-700">
+                        Recargar
+                    </button>
+                </div>
+            </Card>
+        );
+    }
+
+    // Si no hay módulos pero hay permisos, mostrar todos los permisos
+    const hasPermissions = permissionsArray && permissionsArray.length > 0;
+    const shouldShowContent = modules.length > 0 || hasPermissions;
+
+    if (!shouldShowContent) {
         return (
             <Card className="p-6">
                 <div className="text-center py-8">
                     <p className="text-gray-600 mb-4">No hay datos disponibles</p>
-                    <button onClick={() => window.location.reload()}>
+                    <button onClick={() => window.location.reload()} className="text-purple-600 hover:text-purple-700">
                         Recargar
                     </button>
                 </div>
@@ -102,13 +131,15 @@ export function PermissionsMatrix({
 
     return (
         <Card className="overflow-hidden">
-            {/* Navegación de módulos */}
-            <ModuleNavigation
-                modules={modules}
-                selectedModule={selectedModule}
-                onModuleChange={onModuleChange}
-                isLoading={isLoading}
-            />
+            {/* Navegación de módulos - solo mostrar si hay módulos */}
+            {modules.length > 0 && (
+                <ModuleNavigation
+                    modules={modules}
+                    selectedModule={selectedModule}
+                    onModuleChange={onModuleChange}
+                    isLoading={isLoading}
+                />
+            )}
 
             {/* Tabla de permisos */}
             <div className="p-6">

@@ -1,9 +1,9 @@
 import api from '@/lib/axios';
-import { Role, CreateRoleDto, UpdateRoleDto } from '@/types/role';
+import { Role, CreateRoleDto, UpdateRoleDto, RoleQueryParams } from '@/types/role';
 
-export const rolesApi = {
-    getAll: async (): Promise<Role[]> => {
-        const response = await api.get<Role[]>('/role');
+export const RoleAPI = {
+    getAll: async (params?: RoleQueryParams): Promise<Role[]> => {
+        const response = await api.get<Role[]>('/role', { params });
         return response.data;
     },
 
@@ -26,3 +26,6 @@ export const rolesApi = {
         await api.delete(`/role/${id}`);
     },
 };
+
+// Mantener la exportación anterior para compatibilidad
+export const rolesApi = RoleAPI;

@@ -41,9 +41,9 @@ export default function EquipmentPage() {
     const [ searchTerm, setSearchTerm ] = useState("")
     const equipmentFormRef = useRef<EquipmentFormRef>(null)
 
-    // Filtrar equipos según término de búsqueda
+    // Filtrar equipos solo de clientes y según término de búsqueda
     const filteredEquipment = useMemo(() => {
-        let filtered = equipment
+        let filtered = equipment.filter((item: Equipment) => item.useType === EquipmentUseType.CLIENT)
 
         // Filtrar por búsqueda
         if (searchTerm.trim()) {
@@ -130,7 +130,7 @@ export default function EquipmentPage() {
     return (
         <Can action="read" subject="Equipment" redirectOnFail={true}>
             <MainContainer>
-                <HeaderActions title="Gestión de Equipos">
+                <HeaderActions title="Equipos de Instalación (Clientes)">
                     <div className="flex items-center gap-2">
                         <ReloadButton
                             onClick={fetchEquipment}
@@ -150,7 +150,7 @@ export default function EquipmentPage() {
                                     <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
                                         <DialogTitle>Agregar Nuevo Equipo</DialogTitle>
                                         <DialogDescription>
-                                            Ingrese los detalles del nuevo equipo aquí.
+                                            Ingrese los detalles del nuevo equipo para clientes aquí.
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="flex-1 px-6 overflow-y-auto">

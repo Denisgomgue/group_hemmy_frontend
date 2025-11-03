@@ -241,26 +241,6 @@ export const EquipmentForm = forwardRef<EquipmentFormRef, EquipmentFormProps>(({
                         )}
                     />
 
-                    {/* Notas */}
-                    <FormField
-                        control={form.control}
-                        name="notes"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Notas</FormLabel>
-                                <FormControl>
-                                    <Textarea
-                                        {...field}
-                                        placeholder="Observaciones adicionales..."
-                                        disabled={isSubmitting}
-                                        rows={3}
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
                     {/* Categoría - Requerido */}
                     <FormField
                         control={form.control}
@@ -290,6 +270,28 @@ export const EquipmentForm = forwardRef<EquipmentFormRef, EquipmentFormProps>(({
                             </FormItem>
                         )}
                     />
+
+                    {/* Notas */}
+                    <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Notas</FormLabel>
+                                <FormControl>
+                                    <Textarea
+                                        {...field}
+                                        placeholder="Observaciones adicionales..."
+                                        disabled={isSubmitting}
+                                        rows={3}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    
                 </div>
             </form>
         </Form>

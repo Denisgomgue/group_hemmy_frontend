@@ -45,11 +45,19 @@ export interface Equipment {
             clientType: string;
             actor?: {
                 displayName: string;
+                person?: {
+                    firstName: string;
+                    lastName: string;
+                };
+                organization?: {
+                    legalName: string;
+                };
             };
         };
     };
     employee?: {
         id: number;
+        jobTitle?: string;
         person?: {
             firstName: string;
             lastName: string;

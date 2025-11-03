@@ -1,9 +1,9 @@
 import api from '@/lib/axios';
-import { Permission, CreatePermissionDto, UpdatePermissionDto } from '@/types/permission';
+import { Permission, CreatePermissionDto, UpdatePermissionDto, PermissionQueryParams } from '@/types/permission';
 
-export const permissionsApi = {
-    getAll: async (): Promise<Permission[]> => {
-        const response = await api.get<Permission[]>('/permission');
+export const PermissionAPI = {
+    getAll: async (params?: PermissionQueryParams): Promise<Permission[]> => {
+        const response = await api.get<Permission[]>('/permission', { params });
         return response.data;
     },
 
@@ -26,3 +26,6 @@ export const permissionsApi = {
         await api.delete(`/permission/${id}`);
     },
 };
+
+// Mantener la exportación anterior para compatibilidad
+export const permissionsApi = PermissionAPI;

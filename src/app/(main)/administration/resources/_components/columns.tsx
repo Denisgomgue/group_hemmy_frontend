@@ -1,50 +1,57 @@
-import type { ColumnDef } from "@tanstack/react-table"
+import { ColumnDef } from "@tanstack/react-table"
+import { Resource } from "@/types/resource"
+import { ActionsCell } from "./actions-cell"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Resource } from "@/hooks/use-resources-api"
 
-export const baseColumns: ColumnDef<Resource>[] = [
-    {
-        accessorKey: "displayName",
-        header: "Módulo",
-        cell: ({ row }) => {
-            const resource = row.original
-            return (
-                <div className="flex items-center">
-                    
-                    <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                            {resource.displayName}
-                        </div>
-                        
-                    </div>
-                </div>
-            )
-        },
-    },
+export const columns: ColumnDef<Resource>[] = [
     {
         accessorKey: "routeCode",
-        header: "Código de Ruta",
-        cell: ({ row }) => {
-            return (
-                <code className="text-sm bg-gray-100 px-2 py-1 rounded text-gray-800">
-                    {row.getValue("routeCode")}
-                </code>
-            )
-        },
+        header: "Código",
+        cell: ({ row }) => (
+            <div className="font-mono text-sm">
+                {row.original.routeCode}
+            </div>
+        ),
+    },
+    {
+        accessorKey: "name",
+        header: "Nombre",
+        cell: ({ row }) => (
+            <div className="font-medium">
+                {row.original.name}
+            </div>
+        ),
+    },
+    {
+        accessorKey: "description",
+        header: "Descripción",
+        cell: ({ row }) => (
+            <div className="text-sm text-muted-foreground max-w-md truncate">
+                {row.original.description || "-"}
+            </div>
+        ),
+    },
+    {
+        accessorKey: "orderIndex",
+        header: "Orden",
+        cell: ({ row }) => (
+            <div className="text-sm">
+                {row.original.orderIndex}
+            </div>
+        ),
     },
     {
         accessorKey: "isActive",
         header: "Estado",
-        cell: ({ row }) => {
-            const isActive = row.getValue("isActive") as boolean
-            return (
-                <div className="flex items-center space-x-2">                    
-                        {isActive ? "Activo" : "Inactivo"}
-                </div>
-            )
-        },
-    }
-
-    
-] 
+        cell: ({ row }) => (
+            <Badge variant={row.original.isActive ? "default" : "secondary"}>
+                {row.original.isActive ? "Activo" : "Inactivo"}
+            </Badge>
+        ),
+    },
+    {
+        id: "actions",
+        header: "Acciones",
+        cell: ({ row }) => <ActionsCell rowData={row.original} />,
+    },
+]
