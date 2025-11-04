@@ -10,25 +10,25 @@ import {
     Clock,
     MapPin,
     User,
-    Tag,
     Calendar,
     AlertTriangle,
     CheckCircle,
     XCircle
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Ticket } from "@/types/tickets";
+import { Ticket, TicketStatus, TicketPriority } from "@/types/ticket";
 import {
+    getClientName,
+    getClientPhone,
+    getEmployeeName,
+    ticketPriorityLabels,
+    ticketStatusLabels,
+    ticketTypeLabels,
     getPriorityColor,
-    getPriorityLabel,
     getStatusColor,
-    getStatusLabel,
-    getCategoryLabel,
-    getCategoryIcon,
-    formatDuration,
     formatShortDate,
     getTimeSinceCreation
-} from "@/utils/ticket-utils";
+} from "@/utils/ticket-helpers";
 import { useRouter } from "next/navigation";
 
 interface TicketCardProps {
@@ -40,33 +40,50 @@ export function TicketCard({ ticket }: TicketCardProps) {
     const [ isHovered, setIsHovered ] = useState(false);
 
     const handleViewDetails = () => {
-        router.push(`/administration/tickets/${ticket.id}`);
+        router.push(`/support/tickets/${ticket.id}`);
     };
 
-    const getStatusIcon = (status: string) => {
+    const getStatusIcon = (status: TicketStatus) => {
         switch (status) {
-            case "pendiente":
+            case TicketStatus.PENDING:
                 return <Clock className="h-4 w-4" />;
-            case "en-proceso":
+            case TicketStatus.IN_PROGRESS:
                 return <AlertTriangle className="h-4 w-4" />;
-            case "programado":
+            case TicketStatus.OPEN:
                 return <Calendar className="h-4 w-4" />;
-            case "completado":
+            case TicketStatus.RESOLVED:
+            case TicketStatus.CLOSED:
                 return <CheckCircle className="h-4 w-4" />;
-            case "cancelado":
+            case TicketStatus.CANCELLED:
                 return <XCircle className="h-4 w-4" />;
             default:
                 return <Clock className="h-4 w-4" />;
         }
     };
 
+    const getBorderColor = (priority: TicketPriority) => {
+        switch (priority) {
+            case TicketPriority.URGENT:
+                return 'border-l-red-500';
+            case TicketPriority.HIGH:
+                return 'border-l-orange-500';
+            case TicketPriority.MEDIUM:
+                return 'border-l-yellow-500';
+            case TicketPriority.LOW:
+                return 'border-l-blue-500';
+            default:
+                return 'border-l-blue-500';
+        }
+    };
+
+    const clientName = getClientName(ticket);
+    const clientPhone = getClientPhone(ticket);
+    const employeeName = getEmployeeName(ticket);
+    const installationIP = ticket.installation?.ipAddress;
+
     return (
         <Card
-            className={`transition-all duration-200 cursor-pointer hover:shadow-lg border-l-4 ${ticket.priority === 'urgente' ? 'border-l-red-500' :
-                    ticket.priority === 'alta' ? 'border-l-orange-500' :
-                        ticket.priority === 'media' ? 'border-l-yellow-500' :
-                            'border-l-blue-500'
-                }`}
+            className={`transition-all duration-200 cursor-pointer hover:shadow-lg border-l-4 ${getBorderColor(ticket.priorityCode)}`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             onClick={handleViewDetails}
@@ -75,10 +92,13 @@ export function TicketCard({ ticket }: TicketCardProps) {
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-sm font-medium text-muted-foreground">
-                            {ticket.id}
+                            #{ticket.id}
                         </span>
-                        <Badge className={getPriorityColor(ticket.priority)}>
-                            {getPriorityLabel(ticket.priority)}
+                        <Badge className={getPriorityColor(ticket.priorityCode)}>
+                            {ticketPriorityLabels[ ticket.priorityCode ]}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                            {ticketTypeLabels[ ticket.typeCode ]}
                         </Badge>
                     </div>
 
@@ -87,7 +107,7 @@ export function TicketCard({ ticket }: TicketCardProps) {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-8 w-8"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <MoreHorizontal className="h-4 w-4" />
@@ -110,40 +130,36 @@ export function TicketCard({ ticket }: TicketCardProps) {
                     </DropdownMenu>
                 </div>
 
-                <CardTitle className="text-base line-clamp-2 leading-tight">
-                    {ticket.title}
+                <CardTitle className="text-base line-clamp-2 leading-tight mt-2">
+                    {ticket.subject}
                 </CardTitle>
             </CardHeader>
 
             <CardContent className="space-y-3">
                 {/* Cliente */}
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2 text-sm">
+                    <User className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
                     <div className="min-w-0">
-                        <p className="font-medium text-foreground">{ticket.clientName}</p>
-                        <p className="text-xs">{ticket.clientPhone}</p>
+                        <p className="font-medium text-foreground">{clientName}</p>
+                        {clientPhone && (
+                            <p className="text-xs text-muted-foreground">{clientPhone}</p>
+                        )}
                     </div>
                 </div>
 
-                {/* Dirección */}
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs line-clamp-2">{ticket.address}</p>
-                </div>
-
-                {/* Categoría */}
-                <div className="flex items-center gap-2">
-                    <span className="text-2xl">{getCategoryIcon(ticket.category)}</span>
-                    <Badge variant="outline" className="text-xs">
-                        {getCategoryLabel(ticket.category)}
-                    </Badge>
-                </div>
+                {/* Instalación */}
+                {installationIP && (
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs">IP: {installationIP}</p>
+                    </div>
+                )}
 
                 {/* Estado */}
                 <div className="flex items-center gap-2">
-                    {getStatusIcon(ticket.status)}
-                    <Badge className={getStatusColor(ticket.status)}>
-                        {getStatusLabel(ticket.status)}
+                    {getStatusIcon(ticket.statusCode)}
+                    <Badge className={getStatusColor(ticket.statusCode)}>
+                        {ticketStatusLabels[ ticket.statusCode ]}
                     </Badge>
                 </div>
 
@@ -151,51 +167,36 @@ export function TicketCard({ ticket }: TicketCardProps) {
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        <span>{getTimeSinceCreation(ticket.createdAt)}</span>
+                        <span>{getTimeSinceCreation(ticket.openedAt)}</span>
                     </div>
-
-                    {ticket.estimatedDuration && (
-                        <span className="text-xs">
-                            {formatDuration(ticket.estimatedDuration)}
-                        </span>
-                    )}
                 </div>
 
-                {/* Técnico asignado */}
-                {ticket.assignedToName && (
-                    <div className="flex items-center gap-2 pt-2 border-t">
-                        <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs bg-corporate-secondary text-white">
-                                {ticket.assignedToName.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs text-muted-foreground">
-                            Asignado a {ticket.assignedToName}
-                        </span>
+                {/* Descripción */}
+                {ticket.description && (
+                    <div className="text-xs text-muted-foreground line-clamp-2 pt-2 border-t">
+                        {ticket.description}
                     </div>
                 )}
 
-                {/* Etiquetas */}
-                {ticket.tags && ticket.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-2 border-t">
-                        {ticket.tags.slice(0, 3).map((tag, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                                {tag}
-                            </Badge>
-                        ))}
-                        {ticket.tags.length > 3 && (
-                            <Badge variant="secondary" className="text-xs">
-                                +{ticket.tags.length - 3}
-                            </Badge>
-                        )}
+                {/* Empleado asignado */}
+                {employeeName && (
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                        <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                {employeeName.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs text-muted-foreground">
+                            Asignado a {employeeName}
+                        </span>
                     </div>
                 )}
 
                 {/* Fecha programada */}
-                {ticket.scheduledDate && (
+                {ticket.scheduledStart && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
                         <Calendar className="h-3 w-3" />
-                        <span>Programado: {formatShortDate(ticket.scheduledDate)}</span>
+                        <span>Programado: {formatShortDate(ticket.scheduledStart)}</span>
                     </div>
                 )}
             </CardContent>

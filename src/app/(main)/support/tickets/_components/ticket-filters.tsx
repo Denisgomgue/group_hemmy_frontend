@@ -11,12 +11,25 @@ import { Badge } from "@/components/ui/badge";
 import { X, CalendarIcon, Filter, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { TicketFilters as TicketFiltersType } from "@/types/tickets";
 import {
     priorityFilterOptions,
     statusFilterOptions,
     categoryFilterOptions
 } from "@/utils/ticket-labels";
+
+// Tipo para filtros de tickets
+export interface TicketFilters {
+    search?: string;
+    status?: string[];
+    priority?: string[];
+    category?: string[];
+    dateRange?: {
+        from?: string;
+        to?: string;
+    };
+}
+
+type TicketFiltersType = TicketFilters;
 
 interface TicketFiltersProps {
     filters: TicketFiltersType;
@@ -93,7 +106,7 @@ export function TicketFilters({ filters, onUpdateFilters, onClearFilters }: Tick
                             <SelectValue placeholder="Seleccionar estado" />
                         </SelectTrigger>
                         <SelectContent>
-                            {statusFilterOptions.map((option) => (
+                            {statusFilterOptions.map((option: { value: string; label: string }) => (
                                 <SelectItem key={option.value} value={option.value}>
                                     {option.label}
                                 </SelectItem>
@@ -113,7 +126,7 @@ export function TicketFilters({ filters, onUpdateFilters, onClearFilters }: Tick
                             <SelectValue placeholder="Seleccionar prioridad" />
                         </SelectTrigger>
                         <SelectContent>
-                            {priorityFilterOptions.map((option) => (
+                            {priorityFilterOptions.map((option: { value: string; label: string }) => (
                                 <SelectItem key={option.value} value={option.value}>
                                     {option.label}
                                 </SelectItem>
@@ -133,7 +146,7 @@ export function TicketFilters({ filters, onUpdateFilters, onClearFilters }: Tick
                             <SelectValue placeholder="Seleccionar categoría" />
                         </SelectTrigger>
                         <SelectContent>
-                            {categoryFilterOptions.map((option) => (
+                            {categoryFilterOptions.map((option: { value: string; label: string }) => (
                                 <SelectItem key={option.value} value={option.value}>
                                     {option.label}
                                 </SelectItem>

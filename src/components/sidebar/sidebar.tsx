@@ -93,7 +93,7 @@ export function Sidebar({
     "/client",
     "/client/clients",
     "/client/subscriptions",
-    "/client/payment",
+    "/client/payments",
     "/client/invoices"
   ];
 
@@ -132,7 +132,7 @@ export function Sidebar({
   // Rutas para Soporte y Análisis
   const supportPaths = [
     "/support",
-    "/administration/tickets",
+    "/support/tickets",
     "/predictions"
   ];
 
@@ -251,11 +251,11 @@ export function Sidebar({
                   <Can action="read" subject="Payment">
                     <SidebarMenuItem
                       key="payments"
-                      href="/client/payment"
+                      href="/client/payments"
                       icon={CreditCard}
                       title="Pagos"
                       isCollapsed={isCollapsed}
-                      isActive={pathname === "/client/payment"}
+                      isActive={pathname === "/client/payments"}
                     />
                   </Can>
                   <Can action="read" subject="Payment">
@@ -491,11 +491,11 @@ export function Sidebar({
                   <Can action="read" subject="Ticket">
                     <SidebarMenuItem
                       key="tickets"
-                      href="/administration/tickets"
+                      href="/support/tickets"
                       icon={Ticket}
                       title="Ticket de atención"
                       isCollapsed={isCollapsed}
-                      isActive={pathname === "/administration/tickets"}
+                      isActive={pathname === "/support/tickets"}
                     />
                   </Can>
                   <Can action="read" subject="Prediction">

@@ -11,22 +11,23 @@ interface TicketPageProps {
 export async function generateMetadata({ params }: TicketPageProps): Promise<Metadata> {
     const { id } = await params;
     return {
-        title: `Ticket ${id} | Hemmy`,
-        description: `Detalles del ticket ${id}`,
+        title: `Ticket #${id} | Hemmy`,
+        description: `Detalles del ticket #${id}`,
     };
 }
 
 export default async function TicketPage({ params }: TicketPageProps) {
-    // En producción, aquí se haría la llamada a la API para obtener el ticket
     const { id: ticketId } = await params;
 
-    if (!ticketId) {
+    if (!ticketId || isNaN(Number(ticketId))) {
         notFound();
     }
 
     return (
-        <div className="container mx-auto py-6 px-4">
-            <TicketDetails ticketId={ticketId} />
-        </div>
+        <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+            <div className="container mx-auto py-6 px-4 max-w-7xl">
+                <TicketDetails ticketId={ticketId} />
+            </div>
+        </main>
     );
 }

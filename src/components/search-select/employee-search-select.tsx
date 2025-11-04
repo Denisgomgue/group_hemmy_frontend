@@ -6,7 +6,7 @@ import { User, MapPin, Phone, Briefcase } from 'lucide-react';
 
 interface EmployeeSearchSelectProps {
     value?: number;
-    onChange: (employeeId: number) => void;
+    onChange: (employeeId: number | undefined) => void;
     placeholder?: string;
     disabled?: boolean;
     error?: boolean;
@@ -67,57 +67,29 @@ export function EmployeeSearchSelect({
         loadEmployees(query);
     };
 
-    const handleEmployeeSelect = (employeeId: number) => {
-        onChange(employeeId);
-        const selectedEmployee = options.find(opt => opt.value === employeeId);
-        if (selectedEmployee && onEmployeeSelect) {
-            // Encontrar el empleado completo en los datos
-            const employee = options.find(opt => opt.value === employeeId);
-            if (employee) {
-                // Aquí necesitarías obtener el empleado completo del hook
-                // Por ahora solo pasamos el ID
-                onEmployeeSelect({ id: employeeId } as Employee);
-            }
+    const handleSelect = (selectedValue: number | string | undefined) => {
+        const id = typeof selectedValue === 'number' ? selectedValue : undefined;
+        onChange(id);
+        if (id && onEmployeeSelect) {
+            // Aquí necesitarías obtener el empleado completo del hook
+            // Por ahora solo pasamos el ID
+            onEmployeeSelect({ id } as Employee);
         }
     };
-
-    const handleChange = (value: string | number) => {
-        const numericValue = typeof value === 'string' ? parseInt(value, 10) : value;
-        if (!isNaN(numericValue)) {
-            handleEmployeeSelect(numericValue);
-        }
-    };
-
-    const renderEmployeeOption = (option: SearchSelectOption, isSelected: boolean) => (
-        <div
-            className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-accent hover:text-accent-foreground ${isSelected ? 'bg-accent text-accent-foreground' : ''
-                }`}
-            onClick={() => handleEmployeeSelect(option.value as number)}
-        >
-            <div className="flex items-center gap-3">
-                <Briefcase className="h-4 w-4 text-muted-foreground" />
-                <div>
-                    <div className="font-medium">{option.label}</div>
-                    <div className="text-sm text-muted-foreground">{option.description}</div>
-                </div>
-            </div>
-        </div>
-    );
 
     return (
         <SearchSelectInput
+            options={options}
             value={value}
-            onChange={handleChange}
+            onValueChange={handleSelect}
             onSearch={handleSearch}
             placeholder={placeholder}
-            disabled={disabled}
+            disabled={disabled || isLoading}
             error={error}
             className={className}
-            options={options}
             isLoading={isLoading}
             emptyMessage="No hay empleados disponibles"
             noResultsMessage="No se encontraron empleados"
-            renderOption={renderEmployeeOption}
             minSearchLength={2}
             debounceMs={500}
         />

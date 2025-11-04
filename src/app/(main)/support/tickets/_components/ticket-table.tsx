@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,8 +7,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
     MoreHorizontal,
     Clock,
-    MapPin,
-    User,
     Calendar,
     AlertTriangle,
     CheckCircle,
@@ -20,18 +17,18 @@ import {
     UserPlus
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Ticket } from "@/types/tickets";
+import { Ticket, TicketStatus, TicketPriority } from "@/types/ticket";
 import {
+    getClientName,
+    getEmployeeName,
+    ticketPriorityLabels,
+    ticketStatusLabels,
+    ticketTypeLabels,
     getPriorityColor,
-    getPriorityLabel,
     getStatusColor,
-    getStatusLabel,
-    getCategoryLabel,
-    getCategoryIcon,
-    formatDuration,
     formatShortDate,
     getTimeSinceCreation
-} from "@/utils/ticket-utils";
+} from "@/utils/ticket-helpers";
 import { useRouter } from "next/navigation";
 
 interface TicketTableProps {
@@ -41,21 +38,22 @@ interface TicketTableProps {
 export function TicketTable({ tickets }: TicketTableProps) {
     const router = useRouter();
 
-    const handleViewDetails = (ticketId: string) => {
-        router.push(`/administration/tickets/${ticketId}`);
+    const handleViewDetails = (ticketId: number) => {
+        router.push(`/support/tickets/${ticketId}`);
     };
 
-    const getStatusIcon = (status: string) => {
+    const getStatusIcon = (status: TicketStatus) => {
         switch (status) {
-            case "pendiente":
+            case TicketStatus.PENDING:
                 return <Clock className="h-4 w-4" />;
-            case "en-proceso":
+            case TicketStatus.IN_PROGRESS:
                 return <AlertTriangle className="h-4 w-4" />;
-            case "programado":
+            case TicketStatus.OPEN:
                 return <Calendar className="h-4 w-4" />;
-            case "completado":
+            case TicketStatus.RESOLVED:
+            case TicketStatus.CLOSED:
                 return <CheckCircle className="h-4 w-4" />;
-            case "cancelado":
+            case TicketStatus.CANCELLED:
                 return <XCircle className="h-4 w-4" />;
             default:
                 return <Clock className="h-4 w-4" />;
@@ -88,9 +86,9 @@ export function TicketTable({ tickets }: TicketTableProps) {
                         <thead className="bg-muted/50">
                             <tr>
                                 <th className="px-4 py-3 text-left text-sm font-medium">ID</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Título</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Asunto</th>
                                 <th className="px-4 py-3 text-left text-sm font-medium">Cliente</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Categoría</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Tipo</th>
                                 <th className="px-4 py-3 text-left text-sm font-medium">Prioridad</th>
                                 <th className="px-4 py-3 text-left text-sm font-medium">Estado</th>
                                 <th className="px-4 py-3 text-left text-sm font-medium">Asignado</th>
@@ -99,134 +97,137 @@ export function TicketTable({ tickets }: TicketTableProps) {
                             </tr>
                         </thead>
                         <tbody>
-                            {tickets.map((ticket) => (
-                                <tr
-                                    key={ticket.id}
-                                    className="border-b hover:bg-muted/30 transition-colors cursor-pointer"
-                                    onClick={() => handleViewDetails(ticket.id)}
-                                >
-                                    {/* ID */}
-                                    <td className="px-4 py-3">
-                                        <span className="font-mono text-sm font-medium text-muted-foreground">
-                                            {ticket.id}
-                                        </span>
-                                    </td>
+                            {tickets.map((ticket) => {
+                                const clientName = getClientName(ticket);
+                                const employeeName = getEmployeeName(ticket);
 
-                                    {/* Título */}
-                                    <td className="px-4 py-3">
-                                        <div className="max-w-[250px]">
-                                            <p className="font-medium text-sm line-clamp-2">
-                                                {ticket.title}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                                                {ticket.description}
-                                            </p>
-                                        </div>
-                                    </td>
+                                return (
+                                    <tr
+                                        key={ticket.id}
+                                        className="border-b hover:bg-muted/30 transition-colors cursor-pointer"
+                                        onClick={() => handleViewDetails(ticket.id)}
+                                    >
+                                        {/* ID */}
+                                        <td className="px-4 py-3">
+                                            <span className="font-mono text-sm font-medium text-muted-foreground">
+                                                #{ticket.id}
+                                            </span>
+                                        </td>
 
-                                    {/* Cliente */}
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2">
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarFallback className="text-xs bg-corporate-secondary text-white">
-                                                    {ticket.clientName.substring(0, 2).toUpperCase()}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div className="min-w-0">
-                                                <p className="font-medium text-sm">{ticket.clientName}</p>
-                                                <p className="text-xs text-muted-foreground">{ticket.clientPhone}</p>
+                                        {/* Asunto */}
+                                        <td className="px-4 py-3">
+                                            <div className="max-w-[250px]">
+                                                <p className="font-medium text-sm line-clamp-2">
+                                                    {ticket.subject}
+                                                </p>
+                                                {ticket.description && (
+                                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                                        {ticket.description}
+                                                    </p>
+                                                )}
                                             </div>
-                                        </div>
-                                    </td>
+                                        </td>
 
-                                    {/* Categoría */}
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-lg">{getCategoryIcon(ticket.category)}</span>
-                                            <Badge variant="outline" className="text-xs">
-                                                {getCategoryLabel(ticket.category)}
-                                            </Badge>
-                                        </div>
-                                    </td>
-
-                                    {/* Prioridad */}
-                                    <td className="px-4 py-3">
-                                        <Badge className={getPriorityColor(ticket.priority)}>
-                                            {getPriorityLabel(ticket.priority)}
-                                        </Badge>
-                                    </td>
-
-                                    {/* Estado */}
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2">
-                                            {getStatusIcon(ticket.status)}
-                                            <Badge className={getStatusColor(ticket.status)}>
-                                                {getStatusLabel(ticket.status)}
-                                            </Badge>
-                                        </div>
-                                    </td>
-
-                                    {/* Asignado */}
-                                    <td className="px-4 py-3">
-                                        {ticket.assignedToName ? (
+                                        {/* Cliente */}
+                                        <td className="px-4 py-3">
                                             <div className="flex items-center gap-2">
-                                                <Avatar className="h-6 w-6">
-                                                    <AvatarFallback className="text-xs bg-corporate-primary text-white">
-                                                        {ticket.assignedToName.substring(0, 2).toUpperCase()}
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                                        {clientName.substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
-                                                <span className="text-sm">{ticket.assignedToName}</span>
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-sm">{clientName}</p>
+                                                </div>
                                             </div>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground">Sin asignar</span>
-                                        )}
-                                    </td>
+                                        </td>
 
-                                    {/* Creado */}
-                                    <td className="px-4 py-3">
-                                        <div className="text-sm">
-                                            <p>{formatShortDate(ticket.createdAt)}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {getTimeSinceCreation(ticket.createdAt)}
-                                            </p>
-                                        </div>
-                                    </td>
+                                        {/* Tipo */}
+                                        <td className="px-4 py-3">
+                                            <Badge variant="outline" className="text-xs">
+                                                {ticketTypeLabels[ ticket.typeCode ]}
+                                            </Badge>
+                                        </td>
 
-                                    {/* Acciones */}
-                                    <td className="px-4 py-3">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleViewDetails(ticket.id)}>
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                    Ver detalles
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem>
-                                                    <Edit className="h-4 w-4 mr-2" />
-                                                    Editar
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem>
-                                                    <UserPlus className="h-4 w-4 mr-2" />
-                                                    Asignar técnico
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem className="text-destructive">
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Eliminar
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </td>
-                                </tr>
-                            ))}
+                                        {/* Prioridad */}
+                                        <td className="px-4 py-3">
+                                            <Badge className={getPriorityColor(ticket.priorityCode)}>
+                                                {ticketPriorityLabels[ ticket.priorityCode ]}
+                                            </Badge>
+                                        </td>
+
+                                        {/* Estado */}
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2">
+                                                {getStatusIcon(ticket.statusCode)}
+                                                <Badge className={getStatusColor(ticket.statusCode)}>
+                                                    {ticketStatusLabels[ ticket.statusCode ]}
+                                                </Badge>
+                                            </div>
+                                        </td>
+
+                                        {/* Asignado */}
+                                        <td className="px-4 py-3">
+                                            {employeeName ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar className="h-6 w-6">
+                                                        <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                                            {employeeName.substring(0, 2).toUpperCase()}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="text-sm">{employeeName}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground">Sin asignar</span>
+                                            )}
+                                        </td>
+
+                                        {/* Creado */}
+                                        <td className="px-4 py-3">
+                                            <div className="text-sm">
+                                                <p>{formatShortDate(ticket.openedAt)}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {getTimeSinceCreation(ticket.openedAt)}
+                                                </p>
+                                            </div>
+                                        </td>
+
+                                        {/* Acciones */}
+                                        <td className="px-4 py-3">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleViewDetails(ticket.id)}>
+                                                        <Eye className="h-4 w-4 mr-2" />
+                                                        Ver detalles
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem>
+                                                        <Edit className="h-4 w-4 mr-2" />
+                                                        Editar
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem>
+                                                        <UserPlus className="h-4 w-4 mr-2" />
+                                                        Asignar técnico
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-destructive">
+                                                        <Trash2 className="h-4 w-4 mr-2" />
+                                                        Eliminar
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,191 +23,88 @@ import {
     CheckCircle,
     AlertCircle,
     Info,
+    Edit,
+    Loader2,
 } from "lucide-react";
-import { Ticket } from "@/types/tickets/ticket";
-import { TicketComment } from "@/types/tickets/ticket-comment";
-import { TicketTimeline } from "@/types/tickets/ticket-timeline";
-import Link from "next/link";
-import { Label } from "@/components/ui/label";
+import { Ticket, TicketStatus, TicketPriority, TicketType } from "@/types/ticket";
+import { useTicketById } from "@/hooks/use-ticket-by-id";
+import { useTicket } from "@/hooks/use-ticket";
+import {
+    getClientName,
+    getClientPhone,
+    getEmployeeName,
+    ticketPriorityLabels,
+    ticketStatusLabels,
+    ticketTypeLabels,
+    getPriorityColor,
+    getStatusColor,
+    formatShortDate,
+    getTimeSinceCreation,
+} from "@/utils/ticket-helpers";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { EditTicketDialog } from "./edit-ticket-dialog";
 
 interface TicketDetailsProps {
     ticketId: string;
 }
 
-// Datos de ejemplo (en producción vendrían de una API)
-const mockTicket: Ticket = {
-    id: "T-1234",
-    title: "Sin conexión a internet",
-    description: "El cliente no tiene conexión a internet desde ayer. Ha intentado reiniciar el router pero no funciona. Necesita asistencia técnica urgente.",
-    clientId: "C003",
-    clientName: "María González",
-    clientPhone: "+51 999 345 678",
-    clientEmail: "maria@email.com",
-    address: "Av. Principal 123, Sector Norte, Huaraz, Ancash",
-    issue: "Sin conexión a internet",
-    priority: "alta",
-    status: "en-proceso",
-    category: "internet",
-    assignedTo: "T001",
-    assignedToName: "Carlos Méndez",
-    createdAt: "2024-01-15T08:00:00Z",
-    updatedAt: "2024-01-15T09:00:00Z",
-    estimatedDuration: 90,
-    notes: "Cliente reporta que la luz del router está apagada. Posible problema de energía o router defectuoso.",
-    tags: [ "internet", "router", "urgente" ],
-};
-
-const mockComments: TicketComment[] = [
-    {
-        id: "1",
-        ticketId: "T-1234",
-        userId: "U001",
-        userName: "María González",
-        content: "Hola, sigo sin conexión. ¿Pueden enviar un técnico hoy?",
-        createdAt: "2024-01-15T08:30:00Z",
-        isInternal: false,
-    },
-    {
-        id: "2",
-        ticketId: "T-1234",
-        userId: "U002",
-        userName: "Carlos Méndez",
-        content: "Hola María, he programado una visita técnica para hoy a las 2:00 PM. ¿Te parece bien?",
-        createdAt: "2024-01-15T09:00:00Z",
-        isInternal: false,
-    },
-];
-
-const mockTimeline: TicketTimeline[] = [
-    {
-        id: "1",
-        ticketId: "T-1234",
-        action: "ticket_created",
-        description: "Ticket creado por el cliente",
-        userId: "U001",
-        userName: "María González",
-        timestamp: "2024-01-15T08:00:00Z",
-    },
-    {
-        id: "2",
-        ticketId: "T-1234",
-        action: "ticket_assigned",
-        description: "Ticket asignado a Carlos Méndez",
-        userId: "U003",
-        userName: "Sistema",
-        timestamp: "2024-01-15T08:15:00Z",
-    },
-    {
-        id: "3",
-        ticketId: "T-1234",
-        action: "status_changed",
-        description: "Estado cambiado a 'En Proceso'",
-        userId: "U002",
-        userName: "Carlos Méndez",
-        timestamp: "2024-01-15T09:00:00Z",
-    },
-];
-
 export function TicketDetails({ ticketId }: TicketDetailsProps) {
-    const [ ticket, setTicket ] = useState<Ticket | null>(null);
-    const [ comments, setComments ] = useState<TicketComment[]>([]);
-    const [ timeline, setTimeline ] = useState<TicketTimeline[]>([]);
+    const router = useRouter();
+    const { data: ticket, isLoading, error } = useTicketById(ticketId);
+    const { updateTicket, isUpdating } = useTicket();
     const [ activeTab, setActiveTab ] = useState("detalles");
+    const [ isEditingStatus, setIsEditingStatus ] = useState(false);
+    const [ showEditDialog, setShowEditDialog ] = useState(false);
 
-    useEffect(() => {
-        // Simular carga de datos
-        setTicket(mockTicket);
-        setComments(mockComments);
-        setTimeline(mockTimeline);
-    }, [ ticketId ]);
-
-    if (!ticket) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-corporate-primary mx-auto mb-4"></div>
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
                     <p className="text-muted-foreground">Cargando ticket...</p>
                 </div>
             </div>
         );
     }
 
-    const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case "urgente":
-                return "bg-red-600 text-white";
-            case "alta":
-                return "bg-corporate-danger text-white";
-            case "media":
-                return "bg-corporate-warning text-white";
-            default:
-                return "bg-corporate-info text-white";
-        }
-    };
+    if (error || !ticket) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
+                    <p className="text-muted-foreground">Error al cargar el ticket</p>
+                    <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={() => router.push("/support/tickets")}
+                    >
+                        Volver a Tickets
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
-    const getPriorityLabel = (priority: string) => {
-        switch (priority) {
-            case "urgente":
-                return "Urgente";
-            case "alta":
-                return "Alta";
-            case "media":
-                return "Media";
-            default:
-                return "Baja";
-        }
-    };
+    const clientName = getClientName(ticket);
+    const clientPhone = getClientPhone(ticket);
+    const employeeName = getEmployeeName(ticket);
+    const clientEmail = ticket.client?.actor?.person?.email || ticket.client?.actor?.organization?.email || '';
+    const clientAddress = ticket.installation?.address?.fullAddress ||
+        ticket.client?.actor?.person?.address ||
+        ticket.client?.actor?.organization?.address ||
+        'No especificada';
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case "pendiente":
-                return "bg-corporate-warning text-white";
-            case "en-proceso":
-                return "bg-corporate-info text-white";
-            case "programado":
-                return "bg-corporate-secondary text-white";
-            case "completado":
-                return "bg-corporate-success text-white";
-            case "cancelado":
-                return "bg-gray-500 text-white";
-            default:
-                return "bg-gray-500 text-white";
-        }
-    };
-
-    const getStatusLabel = (status: string) => {
-        switch (status) {
-            case "pendiente":
-                return "Pendiente";
-            case "en-proceso":
-                return "En Proceso";
-            case "programado":
-                return "Programado";
-            case "completado":
-                return "Completado";
-            case "cancelado":
-                return "Cancelado";
-            default:
-                return status;
-        }
-    };
-
-    const getCategoryLabel = (category: string) => {
-        switch (category) {
-            case "internet":
-                return "Internet";
-            case "telefonia":
-                return "Telefonía";
-            case "television":
-                return "Televisión";
-            case "equipos":
-                return "Equipos";
-            case "instalacion":
-                return "Instalación";
-            case "mantenimiento":
-                return "Mantenimiento";
-            default:
-                return category;
+    const handleStatusChange = async (newStatus: TicketStatus) => {
+        try {
+            await updateTicket({
+                id: ticket.id,
+                data: { statusCode: newStatus },
+            });
+            setIsEditingStatus(false);
+            toast.success("Estado del ticket actualizado correctamente");
+        } catch (error) {
+            toast.error("Error al actualizar el estado del ticket");
         }
     };
 
@@ -215,26 +113,29 @@ export function TicketDetails({ ticketId }: TicketDetailsProps) {
             {/* Header con navegación */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Link href="/tickets">
-                        <Button variant="ghost" size="sm">
-                            <ArrowLeft className="h-4 w-4 mr-2" />
-                            Volver a Tickets
-                        </Button>
-                    </Link>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push("/support/tickets")}
+                    >
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Volver a Tickets
+                    </Button>
                     <div>
-                        <h1 className="text-2xl font-bold text-corporate-primary">{ticket.id}</h1>
-                        <p className="text-muted-foreground">{ticket.title}</p>
+                        <h1 className="text-2xl font-bold">Ticket #{ticket.id}</h1>
+                        <p className="text-muted-foreground">{ticket.subject}</p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
-                        <Settings className="h-4 w-4 mr-2" />
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowEditDialog(true)}
+                        disabled={!ticket}
+                    >
+                        <Edit className="h-4 w-4 mr-2" />
                         Editar
-                    </Button>
-                    <Button className="bg-corporate-primary hover:bg-corporate-secondary text-white">
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Completar
                     </Button>
                 </div>
             </div>
@@ -252,49 +153,38 @@ export function TicketDetails({ ticketId }: TicketDetailsProps) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
-                                <h3 className="font-medium mb-2">Descripción</h3>
-                                <p className="text-muted-foreground">{ticket.description}</p>
+                                <h3 className="font-medium mb-2">Asunto</h3>
+                                <p className="text-muted-foreground">{ticket.subject}</p>
                             </div>
 
-                            {ticket.notes && (
+                            {ticket.description && (
                                 <div>
-                                    <h3 className="font-medium mb-2">Notas Técnicas</h3>
-                                    <p className="text-muted-foreground">{ticket.notes}</p>
+                                    <h3 className="font-medium mb-2">Descripción</h3>
+                                    <p className="text-muted-foreground whitespace-pre-wrap">{ticket.description}</p>
                                 </div>
                             )}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <h3 className="font-medium mb-2">Categoría</h3>
-                                    <Badge variant="outline">{getCategoryLabel(ticket.category)}</Badge>
+                                    <h3 className="font-medium mb-2">Tipo</h3>
+                                    <Badge variant="outline">{ticketTypeLabels[ ticket.typeCode ]}</Badge>
                                 </div>
-                                <div>
-                                    <h3 className="font-medium mb-2">Duración Estimada</h3>
-                                    <p className="text-muted-foreground">
-                                        {ticket.estimatedDuration ? `${ticket.estimatedDuration} min` : "No especificada"}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {ticket.tags && ticket.tags.length > 0 && (
-                                <div>
-                                    <h3 className="font-medium mb-2">Etiquetas</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {ticket.tags.map((tag) => (
-                                            <Badge key={tag} variant="secondary" className="text-xs">
-                                                {tag}
-                                            </Badge>
-                                        ))}
+                                {ticket.scheduledStart && (
+                                    <div>
+                                        <h3 className="font-medium mb-2">Fecha Programada</h3>
+                                        <p className="text-muted-foreground">
+                                            {new Date(ticket.scheduledStart).toLocaleString('es-ES')}
+                                        </p>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
 
-                    {/* Tabs para comentarios y timeline */}
+                    {/* Comentarios - Placeholder */}
                     <Card>
-                        <CardHeader>
-                            <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <Tabs value={activeTab} onValueChange={setActiveTab}>
+                            <CardHeader>
                                 <TabsList className="grid w-full grid-cols-2">
                                     <TabsTrigger value="detalles" className="flex items-center gap-2">
                                         <MessageSquare className="h-4 w-4" />
@@ -305,59 +195,38 @@ export function TicketDetails({ ticketId }: TicketDetailsProps) {
                                         Línea de Tiempo
                                     </TabsTrigger>
                                 </TabsList>
-                            </Tabs>
-                        </CardHeader>
-                        <CardContent>
-                            <TabsContent value="detalles" className="space-y-4">
-                                {comments.map((comment) => (
-                                    <div key={comment.id} className="flex gap-3 p-3 rounded-lg border">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarFallback className="text-xs">
-                                                {comment.userName.substring(0, 2).toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-medium text-sm">{comment.userName}</span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {new Date(comment.createdAt).toLocaleString('es-ES')}
-                                                </span>
+                            </CardHeader>
+                            <CardContent>
+                                <TabsContent value="detalles" className="space-y-4">
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                        <p>Los comentarios estarán disponibles próximamente</p>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="timeline" className="space-y-4">
+                                    <div className="space-y-4">
+                                        <div className="flex gap-3">
+                                            <div className="flex flex-col items-center">
+                                                <div className="w-3 h-3 bg-primary rounded-full"></div>
+                                                <div className="w-px h-8 bg-muted mt-2"></div>
                                             </div>
-                                            <p className="text-sm">{comment.content}</p>
+                                            <div className="flex-1 pb-4">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-sm">Sistema</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {formatShortDate(ticket.created_at)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Ticket creado con estado: {ticketStatusLabels[ ticket.statusCode ]}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                ))}
-
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="Agregar un comentario..."
-                                        className="flex-1 px-3 py-2 border rounded-md text-sm"
-                                    />
-                                    <Button size="sm">Enviar</Button>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="timeline" className="space-y-4">
-                                {timeline.map((event) => (
-                                    <div key={event.id} className="flex gap-3">
-                                        <div className="flex flex-col items-center">
-                                            <div className="w-3 h-3 bg-corporate-primary rounded-full"></div>
-                                            <div className="w-px h-8 bg-muted mt-2"></div>
-                                        </div>
-                                        <div className="flex-1 pb-4">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-medium text-sm">{event.userName}</span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {new Date(event.timestamp).toLocaleString('es-ES')}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">{event.description}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </TabsContent>
-                        </CardContent>
+                                </TabsContent>
+                            </CardContent>
+                        </Tabs>
                     </Card>
                 </div>
 
@@ -370,28 +239,64 @@ export function TicketDetails({ ticketId }: TicketDetailsProps) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
-                                <Label className="text-sm font-medium">Estado Actual</Label>
-                                <Badge className={`mt-2 ${getStatusColor(ticket.status)}`}>
-                                    {getStatusLabel(ticket.status)}
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-medium">Estado Actual</label>
+                                    {!isEditingStatus && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setIsEditingStatus(true)}
+                                        >
+                                            <Edit className="h-3 w-3" />
+                                        </Button>
+                                    )}
+                                </div>
+                                {isEditingStatus ? (
+                                    <Select
+                                        value={ticket.statusCode}
+                                        onValueChange={(value) => handleStatusChange(value as TicketStatus)}
+                                        disabled={isUpdating}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {Object.entries(ticketStatusLabels).map(([ value, label ]) => (
+                                                <SelectItem key={value} value={value}>
+                                                    {label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <Badge className={getStatusColor(ticket.statusCode)}>
+                                        {ticketStatusLabels[ ticket.statusCode ]}
+                                    </Badge>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium">Prioridad</label>
+                                <Badge className={`mt-2 ${getPriorityColor(ticket.priorityCode)}`}>
+                                    {ticketPriorityLabels[ ticket.priorityCode ]}
                                 </Badge>
                             </div>
 
                             <div>
-                                <Label className="text-sm font-medium">Prioridad</Label>
-                                <Badge className={`mt-2 ${getPriorityColor(ticket.priority)}`}>
-                                    {getPriorityLabel(ticket.priority)}
-                                </Badge>
-                            </div>
-
-                            <div>
-                                <Label className="text-sm font-medium">Asignado a</Label>
+                                <label className="text-sm font-medium">Asignado a</label>
                                 <div className="flex items-center gap-2 mt-2">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarFallback className="text-xs">
-                                            {ticket.assignedToName?.substring(0, 2).toUpperCase() || "NA"}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-sm">{ticket.assignedToName || "No asignado"}</span>
+                                    {employeeName ? (
+                                        <>
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarFallback className="text-xs">
+                                                    {employeeName.substring(0, 2).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <span className="text-sm">{employeeName}</span>
+                                        </>
+                                    ) : (
+                                        <span className="text-sm text-muted-foreground">No asignado</span>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
@@ -407,33 +312,46 @@ export function TicketDetails({ ticketId }: TicketDetailsProps) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
-                                <Label className="text-sm font-medium">Nombre</Label>
-                                <p className="text-sm text-muted-foreground mt-1">{ticket.clientName}</p>
+                                <label className="text-sm font-medium">Nombre</label>
+                                <p className="text-sm text-muted-foreground mt-1">{clientName}</p>
                             </div>
 
-                            <div>
-                                <Label className="text-sm font-medium">Teléfono</Label>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <Phone className="h-4 w-4 text-muted-foreground" />
-                                    <p className="text-sm text-muted-foreground">{ticket.clientPhone}</p>
+                            {clientPhone && (
+                                <div>
+                                    <label className="text-sm font-medium">Teléfono</label>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Phone className="h-4 w-4 text-muted-foreground" />
+                                        <p className="text-sm text-muted-foreground">{clientPhone}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
-                            <div>
-                                <Label className="text-sm font-medium">Email</Label>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <Mail className="h-4 w-4 text-muted-foreground" />
-                                    <p className="text-sm text-muted-foreground">{ticket.clientEmail}</p>
+                            {clientEmail && (
+                                <div>
+                                    <label className="text-sm font-medium">Email</label>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Mail className="h-4 w-4 text-muted-foreground" />
+                                        <p className="text-sm text-muted-foreground">{clientEmail}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div>
-                                <Label className="text-sm font-medium">Dirección</Label>
+                                <label className="text-sm font-medium">Dirección</label>
                                 <div className="flex items-start gap-2 mt-1">
                                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                    <p className="text-sm text-muted-foreground">{ticket.address}</p>
+                                    <p className="text-sm text-muted-foreground">{clientAddress}</p>
                                 </div>
                             </div>
+
+                            {ticket.installation?.ipAddress && (
+                                <div>
+                                    <label className="text-sm font-medium">IP de Instalación</label>
+                                    <p className="text-sm text-muted-foreground mt-1 font-mono">
+                                        {ticket.installation.ipAddress}
+                                    </p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -447,21 +365,36 @@ export function TicketDetails({ ticketId }: TicketDetailsProps) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
-                                <Label className="text-sm font-medium">Creado</Label>
+                                <label className="text-sm font-medium">Abierto</label>
                                 <div className="flex items-center gap-2 mt-1">
                                     <Clock className="h-4 w-4 text-muted-foreground" />
                                     <p className="text-sm text-muted-foreground">
-                                        {new Date(ticket.createdAt).toLocaleString('es-ES')}
+                                        {new Date(ticket.openedAt).toLocaleString('es-ES')}
                                     </p>
                                 </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {getTimeSinceCreation(ticket.openedAt)}
+                                </p>
                             </div>
 
+                            {ticket.closedAt && (
+                                <div>
+                                    <label className="text-sm font-medium">Cerrado</label>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Clock className="h-4 w-4 text-muted-foreground" />
+                                        <p className="text-sm text-muted-foreground">
+                                            {new Date(ticket.closedAt).toLocaleString('es-ES')}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div>
-                                <Label className="text-sm font-medium">Última actualización</Label>
+                                <label className="text-sm font-medium">Última actualización</label>
                                 <div className="flex items-center gap-2 mt-1">
                                     <Clock className="h-4 w-4 text-muted-foreground" />
                                     <p className="text-sm text-muted-foreground">
-                                        {new Date(ticket.updatedAt).toLocaleString('es-ES')}
+                                        {new Date(ticket.updated_at).toLocaleString('es-ES')}
                                     </p>
                                 </div>
                             </div>
@@ -469,6 +402,16 @@ export function TicketDetails({ ticketId }: TicketDetailsProps) {
                     </Card>
                 </div>
             </div>
+
+            {/* Dialog de editar ticket */}
+            {ticket && (
+                <EditTicketDialog
+                    open={showEditDialog}
+                    onOpenChange={setShowEditDialog}
+                    ticket={ticket}
+                />
+            )}
         </div>
     );
 }
+

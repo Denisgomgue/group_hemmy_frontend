@@ -86,10 +86,10 @@ export function ResourcesSection({ resources, onAdd, onUpdate, onDelete }: Resou
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead>Orden</TableHead>
                         <TableHead>Código</TableHead>
                         <TableHead>Nombre</TableHead>
                         <TableHead>Descripción</TableHead>
-                        <TableHead>Orden</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead className="w-24">Acciones</TableHead>
                     </TableRow>
@@ -106,12 +106,12 @@ export function ResourcesSection({ resources, onAdd, onUpdate, onDelete }: Resou
                             .sort((a, b) => a.orderIndex - b.orderIndex)
                             .map((resource) => (
                                 <TableRow key={resource.id}>
+                                    <TableCell>{resource.orderIndex}</TableCell>
                                     <TableCell className="font-mono text-sm">{resource.routeCode}</TableCell>
                                     <TableCell className="font-semibold">{resource.name}</TableCell>
                                     <TableCell className="text-muted-foreground max-w-md truncate">
                                         {resource.description || "-"}
                                     </TableCell>
-                                    <TableCell>{resource.orderIndex}</TableCell>
                                     <TableCell>
                                         <Badge variant={resource.isActive ? "default" : "secondary"}>
                                             {resource.isActive ? "Activo" : "Inactivo"}

@@ -16,7 +16,7 @@ export interface SearchSelectOption {
 export interface SearchSelectInputProps {
     // Props básicas
     value?: string | number;
-    onChange: (value: string | number) => void;
+    onValueChange: (value: string | number | undefined) => void;
     onSearch?: (query: string) => void;
     placeholder?: string;
     disabled?: boolean;
@@ -53,7 +53,7 @@ export interface SearchSelectInputProps {
 
 export function SearchSelectInput({
     value,
-    onChange,
+    onValueChange,
     onSearch,
     placeholder = "Buscar y seleccionar...",
     disabled = false,
@@ -197,27 +197,24 @@ export function SearchSelectInput({
         // Animación suave de selección
         setIsAnimating(true);
 
-        onChange(option.value);
+        onValueChange(option.value);
         setSelectedOption(option);
         setSearchQuery('');
         setHighlightedIndex(-1);
 
-        // Cerrar inmediatamente después de la selección
-        handleClose();
-
-        // Resetear el estado de animación después de un breve delay
+        // Cerrar después de un pequeño delay para permitir que el evento de click se complete
         setTimeout(() => {
+            handleClose();
             setIsAnimating(false);
-
             // Mantener el focus en el input principal después de la selección
             setTimeout(() => {
                 inputRef.current?.focus();
             }, 50);
-        }, 100);
+        }, 200);
     };
 
     const handleClear = () => {
-        onChange('');
+        onValueChange(undefined);
         setSelectedOption(null);
         setSearchQuery('');
         inputRef.current?.focus();
@@ -255,13 +252,15 @@ export function SearchSelectInput({
         onFocus?.();
     };
 
-    const handleInputBlur = () => {
+    const handleInputBlur = (e: React.FocusEvent) => {
         // Solo cerrar si no estamos en medio de una animación y el focus no está en el dropdown
+        // Aumentar el delay para permitir clicks en las opciones
         setTimeout(() => {
-            if (!isAnimating && !dropdownRef.current?.contains(document.activeElement)) {
+            const relatedTarget = e.relatedTarget as Node | null;
+            if (!isAnimating && !dropdownRef.current?.contains(relatedTarget) && !dropdownRef.current?.contains(document.activeElement)) {
                 handleClose();
             }
-        }, 150);
+        }, 200);
         onBlur?.();
     };
 
@@ -273,7 +272,6 @@ export function SearchSelectInput({
                 isSelected && "bg-accent text-accent-foreground",
                 option.disabled && "opacity-50 cursor-not-allowed"
             )}
-            onClick={() => handleSelectOption(option)}
         >
             <div className="flex items-center gap-2">
                 {option.icon}
@@ -349,7 +347,11 @@ export function SearchSelectInput({
             {isOpen && (
                 <div
                     ref={dropdownRef}
-                    className="absolute z-[9999] w-full mt-1 bg-popover border rounded-md shadow-lg animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+                    className="absolute z-[99999] w-full mt-1 bg-popover border rounded-md shadow-lg animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+                    onMouseDown={(e) => {
+                        // Prevenir que el blur cierre el dropdown cuando se hace click dentro
+                        e.preventDefault();
+                    }}
                 >
                     <ScrollArea className="max-h-[300px] overflow-y-auto">
                         {searchable && (
@@ -392,7 +394,18 @@ export function SearchSelectInput({
                                     >
                                         {renderOption
                                             ? renderOption(option, option.value === value)
-                                            : defaultRenderOption(option, option.value === value)
+                                            : (
+                                                <div
+                                                    key={`option-${option.value}`}
+                                                    onMouseDown={(e) => {
+                                                        // Prevenir que el blur se dispare antes del click
+                                                        e.preventDefault();
+                                                        handleSelectOption(option);
+                                                    }}
+                                                >
+                                                    {defaultRenderOption(option, option.value === value)}
+                                                </div>
+                                            )
                                         }
                                     </div>
                                 ))

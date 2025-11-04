@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SearchSelectInput, SearchSelectOption } from '@/components/ui/search-select-input';
-import { Client } from '@/types/clients/client';
-import { useClient } from '@/hooks/use-client';
-import { User, MapPin, Phone } from 'lucide-react';
+import { Client } from '@/types/client';
+import { useClients } from '@/hooks/use-clients';
+import { User } from 'lucide-react';
 
 interface ClientSearchSelectProps {
     value?: number;
-    onChange: (clientId: number) => void;
+    onChange: (clientId: number | undefined) => void;
     placeholder?: string;
     disabled?: boolean;
     error?: boolean;
@@ -24,87 +24,73 @@ export function ClientSearchSelect({
     onClientSelect
 }: ClientSearchSelectProps) {
     const [ options, setOptions ] = useState<SearchSelectOption[]>([]);
-    const [ isLoading, setIsLoading ] = useState(false);
-    const { refreshClient } = useClient();
+    const { clients, refreshClients, isLoading } = useClients();
 
-    const loadClients = async (searchQuery?: string) => {
-        setIsLoading(true);
+    const loadClients = useCallback(async (searchQuery?: string) => {
         try {
-            const result = await refreshClient(1, 50, searchQuery);
-            const clientOptions: SearchSelectOption[] = result.data.map(client => ({
-                value: client.id,
-                label: `${client.name || ''} ${client.lastName || ''}`.trim() || 'Sin nombre',
-                description: `DNI: ${client.dni}${client.phone ? ` • ${client.phone}` : ''}`,
-                icon: <User className="h-4 w-4" />
-            }));
-            setOptions(clientOptions);
+            await refreshClients({ search: searchQuery });
         } catch (error) {
             console.error('Error loading clients:', error);
-            setOptions([]);
-        } finally {
-            setIsLoading(false);
         }
-    };
+    }, [ refreshClients ]);
 
     useEffect(() => {
         loadClients();
-    }, []);
+    }, [ loadClients ]);
 
-    const handleSearch = (query: string) => {
-        loadClients(query);
-    };
+    useEffect(() => {
+        const clientOptions: SearchSelectOption[] = clients.map(client => {
+            const displayName = client?.actor?.displayName ||
+                (client?.actor?.person
+                    ? `${client.actor.person.firstName} ${client.actor.person.lastName}`.trim()
+                    : client?.actor?.organization?.legalName) ||
+                'Sin nombre';
 
-    const handleClientSelect = (clientId: number) => {
-        onChange(clientId);
-        const selectedClient = options.find(opt => opt.value === clientId);
-        if (selectedClient && onClientSelect) {
-            // Encontrar el cliente completo en los datos
-            const client = options.find(opt => opt.value === clientId);
-            if (client) {
-                // Aquí necesitarías obtener el cliente completo del hook
-                // Por ahora solo pasamos el ID
-                onClientSelect({ id: clientId } as Client);
+            const description = client?.actor?.person?.phone ||
+                client?.actor?.organization?.phone ||
+                client?.actor?.person?.documentNumber ||
+                client?.actor?.organization?.documentNumber || '';
+
+            return {
+                value: client.id,
+                label: displayName,
+                description: description ? `${description}` : '',
+                icon: <User className="h-4 w-4" />
+            };
+        });
+        setOptions(clientOptions);
+    }, [ clients ]);
+
+    const handleSelect = (selectedValue: number | string | undefined) => {
+        const id = typeof selectedValue === 'number' ? selectedValue : undefined;
+        onChange(id);
+        if (id && onClientSelect) {
+            const selectedClient = clients.find(c => c.id === id);
+            if (selectedClient) {
+                onClientSelect(selectedClient);
             }
         }
     };
 
-    const handleChange = (value: string | number) => {
-        const numericValue = typeof value === 'string' ? parseInt(value, 10) : value;
-        if (!isNaN(numericValue)) {
-            handleClientSelect(numericValue);
+    const handleSearch = (query: string) => {
+        if (query.length >= 2) {
+            loadClients(query);
         }
     };
 
-    const renderClientOption = (option: SearchSelectOption, isSelected: boolean) => (
-        <div
-            className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-accent hover:text-accent-foreground ${isSelected ? 'bg-accent text-accent-foreground' : ''
-                }`}
-            onClick={() => handleClientSelect(option.value as number)}
-        >
-            <div className="flex items-center gap-3">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <div>
-                    <div className="font-medium">{option.label}</div>
-                    <div className="text-sm text-muted-foreground">{option.description}</div>
-                </div>
-            </div>
-        </div>
-    );
-
     return (
         <SearchSelectInput
+            options={options}
             value={value}
-            onChange={handleChange}
+            onValueChange={handleSelect}
             onSearch={handleSearch}
             placeholder={placeholder}
-            disabled={disabled}
+            disabled={disabled || isLoading}
             error={error}
             className={className}
-            options={options}
             isLoading={isLoading}
             emptyMessage="No hay clientes disponibles"
             noResultsMessage="No se encontraron clientes"
-            renderOption={renderClientOption}
             minSearchLength={2}
             debounceMs={500}
         />

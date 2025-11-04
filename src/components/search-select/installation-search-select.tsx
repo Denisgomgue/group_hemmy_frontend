@@ -6,11 +6,12 @@ import { MapPin } from 'lucide-react';
 
 interface InstallationSearchSelectProps {
     value?: number;
-    onChange: (installationId: number) => void;
+    onChange: (installationId: number | undefined) => void;
     placeholder?: string;
     disabled?: boolean;
     error?: boolean;
     className?: string;
+    clientId?: number; // Filtrar instalaciones por cliente
     onInstallationSelect?: (installation: Installation) => void;
 }
 
@@ -21,6 +22,7 @@ export function InstallationSearchSelect({
     disabled = false,
     error = false,
     className,
+    clientId,
     onInstallationSelect
 }: InstallationSearchSelectProps) {
     const [ options, setOptions ] = useState<SearchSelectOption[]>([]);
@@ -31,8 +33,14 @@ export function InstallationSearchSelect({
     }, [ refreshInstallations ]);
 
     useEffect(() => {
+        // Filtrar instalaciones por cliente si se proporciona clientId
+        let filteredInstallations = installations;
+        if (clientId) {
+            filteredInstallations = installations.filter(inst => inst.clientId === clientId);
+        }
+
         // Actualizar opciones cuando cambien las instalaciones
-        const installationOptions: SearchSelectOption[] = installations.map(installation => {
+        const installationOptions: SearchSelectOption[] = filteredInstallations.map(installation => {
             const clientDisplay = installation?.client?.actor?.displayName ||
                 (installation?.client?.actor?.person
                     ? `${installation.client.actor.person.firstName} ${installation.client.actor.person.lastName}`.trim()
@@ -49,56 +57,31 @@ export function InstallationSearchSelect({
             };
         });
         setOptions(installationOptions);
-    }, [ installations ]);
+    }, [ installations, clientId ]);
 
-    const handleInstallationSelect = (installationId: number) => {
-        onChange(installationId);
-        const selectedInstallation = installations.find(inst => inst.id === installationId);
-        if (selectedInstallation && onInstallationSelect) {
-            onInstallationSelect(selectedInstallation);
+    const handleSelect = (selectedValue: number | string | undefined) => {
+        const id = typeof selectedValue === 'number' ? selectedValue : undefined;
+        onChange(id);
+        if (id && onInstallationSelect) {
+            const selectedInstallation = installations.find(inst => inst.id === id);
+            if (selectedInstallation) {
+                onInstallationSelect(selectedInstallation);
+            }
         }
     };
-
-    const handleChange = (value: string | number) => {
-        const numericValue = typeof value === 'string' ? parseInt(value, 10) : value;
-        if (!isNaN(numericValue)) {
-            handleInstallationSelect(numericValue);
-        }
-    };
-
-    const renderInstallationOption = (option: SearchSelectOption, isSelected: boolean) => (
-        <div
-            className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-accent hover:text-accent-foreground ${isSelected ? 'bg-accent text-accent-foreground' : ''
-                }`}
-            onClick={() => handleInstallationSelect(option.value as number)}
-        >
-            <div className="flex items-center gap-3">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <div>
-                    <div className="font-medium">{option.label}</div>
-                    {option.description && (
-                        <div className="text-sm text-muted-foreground">{option.description}</div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
 
     return (
         <SearchSelectInput
+            options={options}
             value={value}
-            onChange={handleChange}
+            onValueChange={handleSelect}
             placeholder={placeholder}
-            disabled={disabled}
+            disabled={disabled || isLoading}
             error={error}
             className={className}
-            options={options}
-            isLoading={isLoading || !installations.length}
+            isLoading={isLoading}
             emptyMessage="No hay instalaciones disponibles"
             noResultsMessage="No se encontraron instalaciones"
-            renderOption={renderInstallationOption}
-            minSearchLength={0}
-            debounceMs={300}
         />
     );
 }

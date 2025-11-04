@@ -18,7 +18,7 @@ import {
     Download,
     RefreshCw
 } from "lucide-react";
-import { useTickets } from "@/hooks/use-tickets";
+import { useTickets } from "@/hooks/use-ticket";
 import { TicketCard } from "./ticket-card";
 import { TicketTable } from "./ticket-table";
 import { TicketKanban } from "./ticket-kanban";
@@ -53,11 +53,15 @@ export function TicketBoard() {
     const filteredTickets = tickets.filter(ticket => {
         if (!searchTerm) return true;
         const term = searchTerm.toLowerCase();
+        const clientName = ticket.client?.actor?.displayName ||
+            (ticket.client?.actor?.person
+                ? `${ticket.client.actor.person.firstName} ${ticket.client.actor.person.lastName}`
+                : ticket.client?.actor?.organization?.legalName) || '';
         return (
-            ticket.title.toLowerCase().includes(term) ||
-            ticket.clientName.toLowerCase().includes(term) ||
-            ticket.issue.toLowerCase().includes(term) ||
-            ticket.id.toLowerCase().includes(term)
+            ticket.subject.toLowerCase().includes(term) ||
+            clientName.toLowerCase().includes(term) ||
+            (ticket.description?.toLowerCase().includes(term) || false) ||
+            ticket.id.toString().includes(term)
         );
     });
 

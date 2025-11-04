@@ -12,10 +12,23 @@ import {
     TrendingUp,
     AlertCircle
 } from "lucide-react";
-import { TicketStats as TicketStatsType } from "@/types/tickets";
+interface TicketStatsData {
+    total: number;
+    open?: number;
+    inProgress?: number;
+    resolved?: number;
+    closed?: number;
+    pendiente?: number;
+    enProceso?: number;
+    completado?: number;
+    urgente?: number;
+    alta?: number;
+    programado?: number;
+    cancelado?: number;
+}
 
 interface TicketStatsProps {
-    stats?: TicketStatsType;
+    stats?: TicketStatsData;
 }
 
 export function TicketStats({ stats }: TicketStatsProps) {

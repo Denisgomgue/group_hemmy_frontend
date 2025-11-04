@@ -16,61 +16,36 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Trash2, UserCog, Edit, Power } from "lucide-react"
-import type { Profile } from "@/types/profiles/profile"
 import { UserForm } from "./edituser-from"
 import { useUsers } from "@/hooks/use-users"
 import Can from "@/components/permission/can"
-import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import type { User } from "@/types/user"
-import useSWR from "swr"
 import { useAuth } from "@/contexts/AuthContext"
 import { formSchema } from "@/schemas/user-schema"
 import * as z from "zod"
+import { AssignRolesModal } from "./assign-roles-modal"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 interface ActionsCellProps {
     rowData: User
 }
-
-const fetcher = (url: string) => api.get(url).then((res) => res.data)
 
 export const ActionsCell: React.FC<ActionsCellProps> = ({ rowData }) => {
     const [ isProfileDialogOpen, setIsProfileDialogOpen ] = useState(false)
     const [ isEditDialogOpen, setIsEditDialogOpen ] = useState(false)
     const [ showDeleteDialog, setShowDeleteDialog ] = useState(false)
     const [ loading, setLoading ] = useState(false)
-    const [ selectedProfile, setSelectedProfile ] = useState<number | null>(null)
     const { user } = useAuth()
     const [ showStatusDialog, setShowStatusDialog ] = useState(false)
 
     const { refreshUsers } = useUsers()
 
-    const { data: profiles, error, isLoading: profilesLoading } = useSWR<Profile[]>("/roles", fetcher)
-
-    const handleOpenProfileDialog = (user: any) => {
-        console.log(user)
+    const handleOpenProfileDialog = () => {
         setIsProfileDialogOpen(true)
-        setSelectedProfile(null)
     }
 
-    const handleProfileSelect = async () => {
-        if (selectedProfile) {
-            try {
-                await api.post(`/users/${rowData.id}/role/${selectedProfile}`)
-                const displayName = rowData.actor?.displayName ||
-                    (rowData.actor?.person
-                        ? `${rowData.actor.person.firstName} ${rowData.actor.person.lastName}`.trim()
-                        : rowData.actor?.organization?.name) ||
-                    'Usuario';
-                toast.success(`Perfil asignado correctamente al usuario ${displayName}.`)
-                setIsProfileDialogOpen(false)
-                setSelectedProfile(null)
-                await refreshUsers()
-            } catch (error) {
-                console.error("Error asignando el perfil:", error)
-                toast.error("No se pudo asignar el perfil. Por favor, inténtalo de nuevo.")
-            }
-        }
+    const handleRolesAssigned = async () => {
+        await refreshUsers()
     }
 
     const handleDelete = async () => {
@@ -146,7 +121,7 @@ export const ActionsCell: React.FC<ActionsCellProps> = ({ rowData }) => {
                 <Can action="asignar-perfil" subject="configuracion-usuario">
                     <Tooltip>
                         <TooltipTrigger>
-                            <Button variant="outline" size="icon" onClick={() => handleOpenProfileDialog(rowData)}>
+                            <Button variant="outline" size="icon" onClick={handleOpenProfileDialog}>
                                 <UserCog />
                             </Button>
                         </TooltipTrigger>
@@ -209,37 +184,12 @@ export const ActionsCell: React.FC<ActionsCellProps> = ({ rowData }) => {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Seleccionar Perfil</DialogTitle>
-                    </DialogHeader>
-                    {profilesLoading || profilesLoading ? (
-                        <p>Cargando perfiles...</p>
-                    ) : error ? (
-                        <p>Error al cargar perfiles. Inténtalo de nuevo.</p>
-                    ) : (
-                        <Select value={selectedProfile?.toString()} onValueChange={(value) => setSelectedProfile(Number(value))}>
-                            <SelectTrigger>
-                                {profiles?.find(profile => profile.id === selectedProfile)?.name || "Selecciona un perfil"}
-                            </SelectTrigger>
-                            <SelectContent>
-                                {profiles?.map((profile) => (
-                                    <SelectItem key={profile.id} value={profile.id.toString()}>
-                                        {profile.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    )}
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsProfileDialogOpen(false)}>
-                            Cancelar
-                        </Button>
-                        <Button onClick={handleProfileSelect}>Confirmar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <AssignRolesModal
+                open={isProfileDialogOpen}
+                onOpenChange={setIsProfileDialogOpen}
+                user={rowData}
+                onSuccess={handleRolesAssigned}
+            />
 
             <AlertDialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
                 <AlertDialogContent>
